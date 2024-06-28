@@ -6,6 +6,3 @@ test auto deployment
 
 test auto deployment
 
-test auto deployment
-
-test auto deployment
