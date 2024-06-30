@@ -32,10 +32,10 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '10.140.0.2',
-    'www.jieniguicare.org',
+    'gcp.jieniguicare.org',
     'jieniguicare.org',
     '35.221.203.201',
-
+    'ai-dental-health-app-f2rwv6be2a-de.a.run.app',
 ]
 
 
