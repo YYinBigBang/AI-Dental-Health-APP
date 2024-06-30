@@ -24,4 +24,4 @@ RUN python manage.py collectstatic --no-input
 EXPOSE 8000
 
 # Start the Gunicorn server, specifying the number of workers and the WSGI application
-CMD gunicorn --bind 0.0.0.0:$PORT dental_health_service.wsgi:application
+CMD ["gunicorn", "--workers=3", "--bind", "0.0.0.0:$PORT", "AI_Dental_Health_APP.wsgi:application"]
