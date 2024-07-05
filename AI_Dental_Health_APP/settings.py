@@ -58,6 +58,7 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '10.140.0.2',
     'ai-dental-health-app-l3ewwtueeq-de.a.run.app',  # haoyu@
+    'dental-health-app.jieniguicare.org',
     'gcp.jieniguicare.org',
     'jieniguicare.org',
     '35.221.203.201',
