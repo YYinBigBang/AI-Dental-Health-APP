@@ -49,7 +49,7 @@ on:
     branches: [ "main" ]
 
 env:
-  PROJECT_ID: prefab-drake-426901-h0 # TODO: update Google Cloud project id
+  PROJECT_ID: mtk-genius-for-home # TODO: update Google Cloud project id
   GAR_NAME: github-actions # TODO: update Artifact Registry name
   GAR_LOCATION: asia-east1 # TODO: update Artifact Registry location
   SERVICE: ai-dental-health-app # TODO: update Cloud Run service name
