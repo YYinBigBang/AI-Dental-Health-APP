@@ -12,8 +12,10 @@ def timelog(func):
         start_time = time.time()
         try:
             logger.info(f'[Phase: {func.__name__}] ------------- START')
+            print(f'[Phase: {func.__name__}] ------------- START')
             return func(*args, **kwargs)
         finally:
             elapsed_time = time.time() - start_time
             logger.info(f"[Phase: {func.__name__}] ------------- END in {elapsed_time:.3f}(s)")
+            print(f"[Phase: {func.__name__}] ------------- END in {elapsed_time:.3f}(s)")
     return wrapper

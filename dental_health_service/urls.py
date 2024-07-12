@@ -1,5 +1,8 @@
 from django.urls import path
-from .views import *
+from .views import (test_endpoint,
+                    upload_image,
+                    download_image,
+                    analyze_image)
 
 urlpatterns = [
     path('ping/', test_endpoint, name='test_endpoint'),

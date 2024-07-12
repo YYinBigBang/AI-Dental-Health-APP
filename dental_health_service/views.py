@@ -9,9 +9,9 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
-from .utils import logger, timelog
+from .django_utils import logger, timelog
+from .ai_integrations.plaque_detection import DentalPlaqueAnalysis
 
 logger.info("========= Starting the API service =========")
 
@@ -67,16 +67,29 @@ def analyze_image(request):
     gmt_plus8_time = datetime.now(timezone.utc) + timedelta(hours=8)
     # TODO: if receiving multiple requests within a second, service might be failed!!
     folder_name = gmt_plus8_time.strftime('%Y-%m-%d_%H-%M-%S')
-    save_path = Path(settings.MEDIA_ROOT) / 'dental_plaque_analysis' / folder_name
+    save_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / folder_name
     save_path.mkdir(parents=True, exist_ok=True)
 
     # save image
     image_path = save_path / 'original_image.png'
     default_storage.save(str(image_path), ContentFile(image.read()))
 
-    results = {"percentage": '50'}  # TODO: invoking analyzed API for image processing
+    try:
+        # Invoking analyzed API for image processing
+        result = DentalPlaqueAnalysis.analyze_dental_plaque(save_path)
+    except Exception as e:
+        logger.error(f"Error during dental plaque analysis: {e}")
+        return Response({
+            "error": "An error occurred during analysis"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    teeth_range_path = str(save_path / 'teeth_range.png')
+    teeth_range_detect_path = str(save_path / 'teeth_range_detect.png')
 
     return Response({
-        'data': results,
-        'message': f'整口牙齒的牙菌斑占百分比: {results["percentage"]}%'
+        'message': result,
+        'data': {
+            'teethRangePath': teeth_range_path,
+            'teethRangeDetectPath': teeth_range_detect_path
+        }
     }, status=status.HTTP_201_CREATED)
