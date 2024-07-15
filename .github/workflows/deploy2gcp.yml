@@ -9,6 +9,7 @@ env:
   PROJECT_ID: mtk-genius-for-home # TODO: update Google Cloud project id
   GAR_NAME: github-actions # TODO: update Artifact Registry name
   GAR_LOCATION: asia-east1 # TODO: update Artifact Registry location
+  SERVICE: ai-dental-health-app # Service name for tagging
   INSTANCE_NAME: ai-dental-health-app-instance # TODO: update GCE instance name
   ZONE: asia-east1-b # TODO: update GCE zone
   PORT: 8000 # Port to be used by Gunicorn
@@ -40,16 +41,18 @@ jobs:
 
       - name: Build and Push Container
         run: |-
-          docker build -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.SERVICE }}:${{ github.sha }}" ./
-          docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.SERVICE }}:${{ github.sha }}"
+          IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.SERVICE }}:${{ github.sha }}"
+          docker build -t "$IMAGE_TAG" ./
+          docker push "$IMAGE_TAG"
 
       - name: Create Startup Script
         run: |
+          IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.SERVICE }}:${{ github.sha }}"
           echo '#!/bin/bash' > startup-script.sh
           echo 'sudo apt-get update' >> startup-script.sh
           echo 'sudo apt-get install -y docker.io' >> startup-script.sh
-          echo 'sudo docker pull ${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${GAR_NAME}/${SERVICE}:${GITHUB_SHA}' >> startup-script.sh
-          echo 'sudo docker run -d -p 8000:8000 -e PORT=${PORT} ${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${GAR_NAME}/${SERVICE}:${GITHUB_SHA}' >> startup-script.sh
+          echo 'sudo docker pull $IMAGE_TAG' >> startup-script.sh
+          echo 'sudo docker run -d -p 8000:8000 -e PORT=${PORT} $IMAGE_TAG' >> startup-script.sh
 
       - name: Upload Startup Script
         run: |
@@ -62,6 +65,7 @@ jobs:
 
       - name: Update GCE Instance Container
         run: |
+          IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.SERVICE }}:${{ github.sha }}"
           gcloud compute instances update-container ${INSTANCE_NAME} \
             --zone=${ZONE} \
-            --container-image=${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${GAR_NAME}/${SERVICE}:${GITHUB_SHA}
+            --container-image=$IMAGE_TAG
