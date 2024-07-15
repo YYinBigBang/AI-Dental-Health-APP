@@ -10,7 +10,7 @@ env:
   GAR_NAME: github-actions # TODO: update Artifact Registry name
   GAR_LOCATION: asia-east1 # TODO: update Artifact Registry location
   SERVICE: ai-dental-health-app # Service name for tagging
-  INSTANCE_NAME: ai-dental-health-app-instance # TODO: update GCE instance name
+  INSTANCE_NAME_PREFIX: ai-dental-health-app-instance- # Prefix for instance name
   ZONE: asia-east1-b # TODO: update GCE zone
   PORT: 8000 # Port to be used by Gunicorn
 
@@ -44,10 +44,8 @@ jobs:
           echo "Pushing Docker image to Artifact Registry: $IMAGE_TAG"
           docker push "$IMAGE_TAG"
 
-      - name: Delete Existing GCE Instance
-        run: |
-          echo "Deleting existing GCE instance if it exists"
-          gcloud compute instances delete ${INSTANCE_NAME} --zone=${ZONE} --quiet || true
+      - name: Generate Unique Instance Name
+        run: echo "INSTANCE_NAME=${INSTANCE_NAME_PREFIX}${GITHUB_SHA::8}" >> $GITHUB_ENV
 
       - name: Create GCE Instance with Container
         run: |
@@ -60,7 +58,12 @@ jobs:
             --scopes=https://www.googleapis.com/auth/cloud-platform \
             --tags=http-server \
             --metadata=google-logging-enabled=true \
-            --container-env=PORT=${PORT}
+            --container-env=PORT=${PORT} \
+            --container-command="gunicorn" \
+            --container-arg="--workers=3" \
+            --container-arg="--bind" \
+            --container-arg="0.0.0.0:${PORT}" \
+            --container-arg="AI_Dental_Health_APP.wsgi:application"
 
       - name: Verify Deployment
         run: |
