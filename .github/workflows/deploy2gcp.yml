@@ -16,7 +16,6 @@ env:
 
 jobs:
   deploy:
-    # Add 'id-token' with the intended permissions for workload identity federation
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -27,45 +26,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      # Authenticate to Google Cloud
       - name: Google Auth
         id: auth
         uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.GCP_KEY }}'
 
-      # Docker auth and build
       - name: Docker Auth
-        run: |-
+        run: |
           gcloud auth configure-docker "${{ env.GAR_LOCATION }}-docker.pkg.dev"
 
       - name: Build and Push Container
-        run: |-
+        run: |
           IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.SERVICE }}:${{ github.sha }}"
           docker build -t "$IMAGE_TAG" ./
           docker push "$IMAGE_TAG"
 
-      - name: Create Startup Script
+      - name: Create GCE Instance with Container
         run: |
           IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.SERVICE }}:${{ github.sha }}"
-          echo '#!/bin/bash' > startup-script.sh
-          echo 'sudo apt-get update' >> startup-script.sh
-          echo 'sudo apt-get install -y docker.io' >> startup-script.sh
-          echo 'sudo docker pull $IMAGE_TAG' >> startup-script.sh
-          echo 'sudo docker run -d -p 8000:8000 -e PORT=${PORT} $IMAGE_TAG' >> startup-script.sh
-
-      - name: Upload Startup Script
-        run: |
-          gcloud compute instances create ${INSTANCE_NAME} \
+          gcloud compute instances create-with-container ${INSTANCE_NAME} \
             --zone=${ZONE} \
-            --metadata-from-file startup-script=startup-script.sh \
-            --image-family=debian-11 \
-            --image-project=debian-cloud \
-            --scopes=https://www.googleapis.com/auth/cloud-platform
+            --container-image=$IMAGE_TAG \
+            --container-restart-policy=always \
+            --scopes=https://www.googleapis.com/auth/cloud-platform \
+            --tags=http-server \
+            --metadata=google-logging-enabled=true
 
-      - name: Update GCE Instance Container
+      - name: Verify Deployment
         run: |
-          IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.SERVICE }}:${{ github.sha }}"
-          gcloud compute instances update-container ${INSTANCE_NAME} \
-            --zone=${ZONE} \
-            --container-image=$IMAGE_TAG
+          gcloud compute instances describe ${INSTANCE_NAME} --zone=${ZONE}
