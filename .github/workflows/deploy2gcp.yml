@@ -59,7 +59,7 @@ jobs:
           gcloud compute instances create ${INSTANCE_NAME} \
             --zone=${ZONE} \
             --metadata-from-file startup-script=startup-script.sh \
-            --image-family=debian-10 \
+            --image-family=debian-11 \
             --image-project=debian-cloud \
             --scopes=https://www.googleapis.com/auth/cloud-platform
 
