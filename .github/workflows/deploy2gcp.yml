@@ -39,20 +39,30 @@ jobs:
       - name: Build and Push Container
         run: |
           IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.SERVICE }}:${{ github.sha }}"
+          echo "Building Docker image with tag: $IMAGE_TAG"
           docker build -t "$IMAGE_TAG" ./
+          echo "Pushing Docker image to Artifact Registry: $IMAGE_TAG"
           docker push "$IMAGE_TAG"
+
+      - name: Delete Existing GCE Instance
+        run: |
+          echo "Deleting existing GCE instance if it exists"
+          gcloud compute instances delete ${INSTANCE_NAME} --zone=${ZONE} --quiet || true
 
       - name: Create GCE Instance with Container
         run: |
           IMAGE_TAG="${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_NAME }}/${{ env.SERVICE }}:${{ github.sha }}"
+          echo "Creating GCE instance with container image: $IMAGE_TAG"
           gcloud compute instances create-with-container ${INSTANCE_NAME} \
             --zone=${ZONE} \
             --container-image=$IMAGE_TAG \
             --container-restart-policy=always \
             --scopes=https://www.googleapis.com/auth/cloud-platform \
             --tags=http-server \
-            --metadata=google-logging-enabled=true
+            --metadata=google-logging-enabled=true \
+            --container-env=PORT=${PORT}
 
       - name: Verify Deployment
         run: |
+          echo "Verifying GCE instance deployment"
           gcloud compute instances describe ${INSTANCE_NAME} --zone=${ZONE}
