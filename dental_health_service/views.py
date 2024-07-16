@@ -93,3 +93,14 @@ def analyze_image(request):
             'teethRangeDetectPath': teeth_range_detect_path
         }
     }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@timelog
+def get_analysis_result(request, filepath):
+    image_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / filepath
+    if not image_path.exists():
+        raise Http404
+
+    with open(image_path, 'rb') as f:
+        return HttpResponse(f.read(), content_type="image/jpeg")
