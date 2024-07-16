@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # define log file path
 LOG_DIR = BASE_DIR / 'django_logs'
 LOG_DIR.mkdir(exist_ok=True)
-os.chmod(LOG_DIR, 0o644)
+os.chmod(LOG_DIR, 0o755)
 
 # Media files
 MEDIA_URL = '/media/'
