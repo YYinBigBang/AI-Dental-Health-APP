@@ -10,5 +10,5 @@ urlpatterns = [
     path('images/upload/', upload_image, name='upload_image'),
     path('images/<str:filename>/', download_image, name='download_image'),
     path('analysis/', analyze_image, name='analyze_image'),
-    path('analysis/', get_analysis_result, name='get_analysis_result'),
+    path('analysis/<str:filename>/', get_analysis_result, name='get_analysis_result'),
 ]
