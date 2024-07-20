@@ -83,8 +83,8 @@ def analyze_image(request):
             "error": "An error occurred during analysis"
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    teeth_range_path = f'{folder_name}/teeth_range.png'
-    teeth_range_detect_path = f'{folder_name}/teeth_range_detect.png'
+    teeth_range_path = f'/api/analysis/teeth_range/{folder_name}/'
+    teeth_range_detect_path = f'/api/analysis/teeth_range_detect/{folder_name}/'
 
     return Response({
         'message': result,
