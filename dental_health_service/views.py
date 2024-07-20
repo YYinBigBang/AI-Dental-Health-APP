@@ -97,10 +97,15 @@ def analyze_image(request):
 
 @api_view(['GET'])
 @timelog
-def get_analysis_result(request, filepath):
-    image_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / filepath
+def get_analysis_result(request, image_name, timestamp):
+    valid_image_types = ['teeth_range', 'teeth_range_detect']
+    if image_name not in valid_image_types:
+        raise Http404
+
+    image_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / timestamp / f'{image_name}.png'
     if not image_path.exists():
         raise Http404
 
     with open(image_path, 'rb') as f:
-        return HttpResponse(f.read(), content_type="image/jpeg")
+        return HttpResponse(f.read(), content_type='image/png')
+
