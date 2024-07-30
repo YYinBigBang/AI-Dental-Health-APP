@@ -1,0 +1,7 @@
+Download below files to this folder:
+model_final.pth
+best.pt
+
+download path(Ensure the version is correct):
+https://github.com/YYinBigBang/AI-Dental-Health-APP/releases/download/weight1.0/best.pt
+https://github.com/YYinBigBang/AI-Dental-Health-APP/releases/download/weight1.0/model_final.pth
