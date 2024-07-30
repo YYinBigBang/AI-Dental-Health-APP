@@ -165,7 +165,6 @@ class DentalPlaqueAnalysis:
         logger.info(f'Using Detection2 for single tooth prediction...')
 
         # Capture each tooth by the detection result of YOLO model.
-        im = cv2.imread(teeth_range_img_path)
         outputs = self.predictor(im)
         instances = outputs["instances"].to(self.core)
         masks = instances.pred_masks
@@ -206,6 +205,14 @@ class DentalPlaqueAnalysis:
 
         total_teeth_area = 0  # area of full mouth teeth.
         total_black_pixels = 0  # dental plaque of full mouth teeth.
+
+        # Get the teeth_range image size.
+        height, width, channels = self.teeth_range_img_size
+        logger.debug(f'teeth_range image size => Width: {width}, Height: {height}')
+
+        # Create a blank image with the same size as original image.
+        blank_image = np.full((height, width), 255, dtype=np.uint8)
+
         for tooth_data in self.teeth_alignment_list:
             x, y, w, h, extracted_tooth_img, resized_tooth_img, single_tooth_img_path = tooth_data
             # Extract the tooth portion onto a blank image.
@@ -219,19 +226,8 @@ class DentalPlaqueAnalysis:
 
             _, thresholded_image = cv2.threshold(grayscale_img, 0.7 * 255, 255, cv2.THRESH_BINARY)
 
-            # Get the teeth_range image size.
-            height, width, channels = self.teeth_range_img_size
-            logger.debug(f'teeth_range image size => Width: {width}, Height: {height}')
-
-            # Create a blank image with the same size as original image.
-            blank_image = np.full((height, width), 255, dtype=np.uint8)
-
             blank_image[y:y + h, x:x + w] = thresholded_image
-            # Save the composite image of full mouth teeth.
-            teeth_range_detect_img_path = str(self.img_root_path / "teeth_range_detect.png")
-            # cv2.imwrite(teeth_range_detect_img_path, blank_image)  # save file to local path
-            logger.info(f'save image {teeth_range_detect_img_path}')
-            django_save_image(teeth_range_detect_img_path, blank_image)
+
             fname = Path(single_tooth_img_path).name
             logger.debug(f"--------------- {fname} ---------------")
 
@@ -260,6 +256,12 @@ class DentalPlaqueAnalysis:
             # cv2.imwrite(processed_tooth_img_path, thresholded_image)  # save file to local path
             logger.info(f'save image {processed_tooth_img_path}')
             django_save_image(processed_tooth_img_path, thresholded_image)
+
+        # Save the composite image of full mouth teeth.
+        teeth_range_detect_img_path = str(self.img_root_path / "teeth_range_detect.png")
+        # cv2.imwrite(teeth_range_detect_img_path, blank_image)  # save file to local path
+        logger.info(f'save image {teeth_range_detect_img_path}')
+        django_save_image(teeth_range_detect_img_path, blank_image)
 
         # Calculate the dental plaque ratio for the full mouth.
         try:
