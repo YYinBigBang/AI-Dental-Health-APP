@@ -2,9 +2,9 @@
 Project for MediaTek's digital social innovation competitions "Genius for home"
 
 ### Improvement:
-> 1.Bug fixes for wrong teeth_range_detect.png
+> 1.Bug fixes for wrong teeth_range_detect.png (done)
 
-> 2.Transfer file access functionality to model.py
+> 2.Transfer file access functionality to model.py (on going)
 
 > 3.Implement a new feature for API return code
   - `returncode -> 0` API success.

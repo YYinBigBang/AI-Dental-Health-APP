@@ -4,3 +4,7 @@
 # Mac OS
 *.DS_Store
 
+# model weight
+*.pt
+*.pth
+
