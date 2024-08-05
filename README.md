@@ -1,7 +1,102 @@
 # AI-Dental-Health-APP
 Project for MediaTek's digital social innovation competitions "Genius for home"
 
-### Improvement:
+## Overview
+A backend service for detecting the percentage of dental plaque on teeth.
+
+## API Documentation
+
+#### Invoke API server to check server is running:
+
+- Request:
+```
+[GET] /api/ping/
+```
+
+- Response:
+```
+{
+    "message": "Hi there, API is working~"
+}
+```
+
+#### Send image to API for detecting dental plaque:
+
+- Request:
+```
+[POST] /api/analysis/
+key: image
+value: png file
+```
+- Response:
+```
+{
+    "message": "The percentage of dental plaque on teeth: 43.08%",
+    "data": {
+        "teethRangePath": "teeth_range/2024-08-04_23-42-30/",
+        "teethRangeDetectPath": "teeth_range_detect/2024-08-04_23-42-30/"
+    }
+}
+```
+
+#### Get teeth_range image from API:
+
+- Request:
+```
+[GET] /api/analysis/teeth_range/2024-08-04_23-42-30/
+```
+- Response:
+```
+the png file of teeth_range
+```
+
+#### Get teeth_range_detect image from API:
+
+- Request:
+```
+[GET] /api/analysis/teeth_range_detect/2024-08-04_23-42-30/
+```
+- Response:
+```
+the png file of teeth_range_detect
+```
+
+
+## Using AI-Dental-Health-APP service with Docker
+*Please ensure the weight files are stored in the project directory.*\
+Download link of weight files: \
+https://github.com/YYinBigBang/AI-Dental-Health-APP/releases/tag/weight1.0
+
+#### Build image:
+```docker
+docker build -t ai_dental_health_app .
+```
+
+#### Run container:
+```docker
+docker run -p 8000:8000 -e PORT=8000 ai_dental_health_app
+```
+
+#### List containers:
+```docker
+docker ps
+```
+
+#### Enter container:
+```docker
+docker exec -it [container name or ID] bash
+```
+
+#### Delete containers and images:
+```docker
+docker stop $(docker ps -aq)
+docker rm $(docker ps -aq)
+docker rmi $(docker images -q)
+```
+
+---
+
+### Improvements:
 > 1.Bug fixes for wrong teeth_range_detect.png (done)
 
 > 2.Transfer file access functionality to model.py (on going)
