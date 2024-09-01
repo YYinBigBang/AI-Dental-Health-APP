@@ -31,6 +31,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# Line Bot Settings
+LINE_CHANNEL_ACCESS_TOKEN = 'QE0kErTgy/3bNpUKFMJ76XR1AyRO2xAjPPKdlTg2Fx3uXN21paS+R7KvozDMD5Taq6Xz893vWP4jMjRlQcMqcarRqv51bZ2D5lhEifrqGa6/dcJgbKx3pBbzyyQqKxbsqEP5vSsnbglwPHNowMw5lQdB04t89/1O/w1cDnyilFU='
+LINE_CHANNEL_SECRET = 'f95281bf06be5fb105f84d12b356c0dc'
+
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-5js!+$ccs8=n-j52pd8uz_z2nnhg@4$iyb&645%4g-riz_=q7!'
