@@ -77,6 +77,16 @@ docker build -t ai_dental_health_app .
 docker run -p 8000:8000 -e PORT=8000 ai_dental_health_app
 ```
 
+#### To obtain the SSL certificates for the first time, run Certbot directly:
+```docker
+docker-compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d your_domain_or_ip --email your_email@example.com --agree-tos --no-eff-email
+```
+
+#### Start all the Services with docker-compose:
+```docker
+docker-compose up -d
+```
+
 #### List containers:
 ```docker
 docker ps
