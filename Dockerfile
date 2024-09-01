@@ -83,8 +83,8 @@ COPY . .
 # Run Django's collectstatic command as part of the build process
 RUN python3 manage.py collectstatic --no-input
 
-# Expose port 8000 to the outside world
+# Expose port 8000 for internal use
 EXPOSE 8000
 
 # Start the Gunicorn server, specifying the number of workers and the WSGI application
-CMD gunicorn --workers=3 --bind 0.0.0.0:$PORT AI_Dental_Health_APP.wsgi:application
+CMD gunicorn --workers=3 --bind 0.0.0.0:8000 AI_Dental_Health_APP.wsgi:application
