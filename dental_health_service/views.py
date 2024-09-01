@@ -1,19 +1,124 @@
+# -*- coding: utf-8 -*-
 
+# Standard libraries section
+from datetime import datetime, timedelta, timezone
+
+# Django section
 from django.conf import settings
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import render
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from datetime import datetime, timedelta, timezone
+# LineBot section
+from linebot.v3 import WebhookHandler, WebhookParser
+from linebot.v3.messaging.api.messaging_api_blob import MessagingApiBlob
+from linebot.v3.webhooks import MessageEvent, TextMessageContent, ImageMessageContent
+from linebot.v3.exceptions import InvalidSignatureError
+from linebot.v3.messaging import (
+    Configuration,
+    ApiClient,
+    MessagingApi,
+    ShowLoadingAnimationRequest,
+    ReplyMessageRequest,
+    TextMessage,
+    ImageMessage
+)
 
+# Custom section
 from .django_utils import logger, timelog
 from .ai_integrations.plaque_detection import DentalPlaqueAnalysis
 
 logger.info("========= Starting the API service =========")
+line_bot_config = Configuration(access_token=settings.LINE_CHANNEL_ACCESS_TOKEN)
+line_bot_handler = WebhookHandler(settings.LINE_CHANNEL_SECRET)
+
+
+@csrf_exempt
+@api_view(['POST'])
+def callback(request):
+    signature = request.META['HTTP_X_LINE_SIGNATURE']
+    body = request.body.decode('utf-8')
+
+    try:
+        line_bot_handler.handle(body, signature)
+    except InvalidSignatureError:
+        logger.warning('Invalid signature. Please check your channel access token/channel secret.')
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(status=status.HTTP_200_OK)
+
+
+@line_bot_handler.add(MessageEvent, message=TextMessageContent)
+def handle_text_message(event):
+    with ApiClient(line_bot_config) as api_client:
+        line_bot_api = MessagingApi(api_client)
+
+        line_bot_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=event.reply_token,
+                messages=[TextMessage(text=event.message.text)]
+            )
+        )
+
+
+@line_bot_handler.add(MessageEvent, message=ImageMessageContent)
+def handle_content_message(event):
+    with ApiClient(line_bot_config) as api_client:
+        line_bot_api = MessagingApi(api_client)
+        line_bot_blob_api = MessagingApiBlob(api_client)
+        image_content = line_bot_blob_api.get_message_content(message_id=event.message.id)
+
+        # Show loading animation
+        loading_request = ShowLoadingAnimationRequest(duration=10)
+        line_bot_api.show_loading_animation(event.reply_token, loading_request)
+
+        # Get the current UTC time and convert to GMT+8 time zone
+        gmt_plus8_time = datetime.now(timezone.utc) + timedelta(hours=8)
+        # TODO: if receiving multiple requests within a second, service might be failed!!
+        folder_name = gmt_plus8_time.strftime('%Y-%m-%d_%H-%M-%S')
+        save_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / folder_name
+        save_path.mkdir(parents=True, exist_ok=True)
+
+        # save image
+        image_path = save_path / 'original_image.png'
+        default_storage.save(str(image_path), ContentFile(image_content))
+
+        try:
+            # Invoke analysis API for image processing
+            result_comment = DentalPlaqueAnalysis.analyze_dental_plaque(save_path)
+        except Exception as e:
+            logger.error(f"Error during dental plaque analysis: {e}")
+            return Response({
+                "error": "An error occurred during analysis image"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        domain_name = 'https://dental-service.jieniguicare.org'
+        api_route = '/api/analysis/'
+        teeth_range_path = domain_name + api_route + f'teeth_range/{folder_name}/'
+        teeth_range_detect_path = domain_name + api_route + f'teeth_range_detect/{folder_name}/'
+
+        # Integrate all the messages
+        messages = [
+            ImageMessage(
+                original_content_url=teeth_range_path,
+                preview_image_url=teeth_range_path),
+            ImageMessage(
+                original_content_url=teeth_range_detect_path,
+                preview_image_url=teeth_range_detect_path),
+            TextMessage(text=result_comment)
+        ]
+
+        # Send all messages to client
+        line_bot_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=event.reply_token,
+                messages=messages)
+        )
 
 
 @api_view(['GET'])
