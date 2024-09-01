@@ -8,3 +8,5 @@
 *.pt
 *.pth
 
+# static file of Django
+/static
