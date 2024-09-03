@@ -32,6 +32,10 @@ RUN apt-get update && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Create a directory for Certbot
+RUN mkdir -p /var/www/certbot && \
+    chown -R appuser:appuser /var/www/certbot
+
 # Use a multi-stage build to install PyTorch and other dependencies
 FROM base AS builder
 
