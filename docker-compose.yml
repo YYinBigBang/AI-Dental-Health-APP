@@ -24,8 +24,9 @@ services:
       - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
     depends_on:
-      - certbot
       - django
+      - certbot
+    entrypoint: /bin/sh -c "while [ ! -f /etc/letsencrypt/live/dental-service.jieniguicare.org/fullchain.pem ]; do sleep 1; done && nginx -g 'daemon off;'"
     restart: always
 
   certbot:
