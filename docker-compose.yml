@@ -24,6 +24,7 @@ services:
       - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
     depends_on:
+      - certbot
       - django
     restart: always
 
