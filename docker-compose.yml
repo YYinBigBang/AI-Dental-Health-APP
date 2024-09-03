@@ -10,7 +10,7 @@ services:
     environment:
       - PORT=8000
     volumes:
-      - ./django_project:/home/appuser  # Mount the Django project to the host machine
+      - ./AI_Dental_Health_APP:/home/appuser/AI_Dental_Health_APP  # Mount the Django project to the host machine
     restart: always
 
   nginx:
@@ -37,4 +37,4 @@ services:
     restart: always
 
 volumes:
-  django_project:
+  AI_Dental_Health_APP:
