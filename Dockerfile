@@ -28,11 +28,12 @@ RUN apt-get update && \
     wget https://bootstrap.pypa.io/get-pip.py && \
     python3 get-pip.py --user && \
     rm get-pip.py && \
+    # Ensure appuser is created before setting ownership
     useradd -m --no-log-init --system --uid 1000 appuser -g sudo && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create a directory for Certbot
+# Create a directory for Certbot and set permissions
 RUN mkdir -p /var/www/certbot && \
     chown -R appuser:appuser /var/www/certbot
 
@@ -91,4 +92,4 @@ RUN python3 manage.py collectstatic --no-input
 EXPOSE 8000
 
 # Start the Gunicorn server, specifying the number of workers and the WSGI application
-CMD gunicorn --workers=3 --bind 0.0.0.0:8000 AI_Dental_Health_APP.wsgi:application
+CMD ["gunicorn", "--workers=3", "--bind=0.0.0.0:8000", "AI_Dental_Health_APP.wsgi:application"]
