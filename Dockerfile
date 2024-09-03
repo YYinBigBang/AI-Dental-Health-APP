@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH="/home/appuser/.local/bin:${PATH}"
 ENV HOME="/home/appuser"
 
-# Install system dependencies and create a non-root user and group
+# Install system dependencies and create a non-root user
 RUN apt-get update && \
     apt-get install -y \
     ca-certificates \
@@ -28,9 +28,8 @@ RUN apt-get update && \
     wget https://bootstrap.pypa.io/get-pip.py && \
     python3 get-pip.py --user && \
     rm get-pip.py && \
-    # Ensure appuser and appuser group are created
-    groupadd -r appuser && \
-    useradd -m -r -g appuser --uid 1000 appuser && \
+    # Ensure appuser is created before setting ownership
+    useradd -m --no-log-init --system --uid 1000 appuser -g sudo && \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 

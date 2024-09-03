@@ -1,8 +1,9 @@
 version: '3.8'
 
 services:
-  app:
+  django:
     build: .
+    image: ai_dental_health_app
     container_name: ai_dental_health_app
     expose:
       - "8000"  # Exposing the internal port for Nginx to proxy
@@ -23,7 +24,7 @@ services:
       - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
     depends_on:
-      - app
+      - django
     restart: always
 
   certbot:
