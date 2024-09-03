@@ -87,6 +87,21 @@ docker-compose run --rm certbot certonly --webroot --webroot-path=/var/www/certb
 docker-compose up -d
 ```
 
+#### Rebuild Docker image and start container:
+```docker
+docker-compose up --build
+```
+
+#### Delete Docker container:
+```docker
+docker-compose down
+```
+
+#### Delete Docker image and data:
+```docker
+docker system prune -a --volumes
+```
+
 #### List containers:
 ```docker
 docker ps
