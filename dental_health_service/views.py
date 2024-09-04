@@ -113,7 +113,7 @@ def handle_content_message(event):
         image_content = line_bot_blob_api.get_message_content(message_id=event.message.id)
 
         # Show loading animation
-        loading_request = ShowLoadingAnimationRequest(duration=10)
+        loading_request = ShowLoadingAnimationRequest(chatId=event.source.user_id, duration=10)
         line_bot_api.show_loading_animation(event.reply_token, loading_request)
 
         # Get the current UTC time and convert to GMT+8 time zone
