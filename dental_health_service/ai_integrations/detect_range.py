@@ -132,7 +132,7 @@ class YoloDetector:
         if self.classify:
             modelc = load_classifier(name='resnet101', n=2)  # initialize
             modelc.load_state_dict(
-                torch.load('weights/resnet101.pt', map_location=self.device)['model']).to(self.device).eval()
+                torch.load('weights/resnet101.pt', map_location=self.device, weights_only=True)['model']).to(self.device).eval()
 
         # Set Dataloader
         vid_path, vid_writer = None, None
