@@ -73,11 +73,11 @@ def handle_text_message(event):
             ]
         elif '查詢結果' in user_message:
             messages = [
-                TextMessage(text='請輸入日期\n(格式：2024/07/01 或 2024.08.02)')
+                TextMessage(text='請輸入日期\n(格式：2024-07-07_20-13-14)')
             ]
         else:
-
-            if match_text := re.search(r'\d{4}[-/.]\d{2}[-/.]\d{2}', user_message):
+            regex = r'\d{4}[-./]\d{2}[-./]\d{2}[-._/]\d{2}[-./]\d{2}[-./]\d{2}'
+            if match_text := re.search(regex, user_message):
                 timestamp = match_text.group()
                 image_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / timestamp
 
@@ -153,7 +153,7 @@ def handle_content_message(event):
 
             # Integrate all the messages
             messages = [
-                TextMessage(text=f'日期：{folder_name}'),
+                TextMessage(text=f'時間：{folder_name}'),
                 ImageMessage(
                     original_content_url=teeth_range_path,
                     preview_image_url=teeth_range_path),
