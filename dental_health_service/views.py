@@ -59,34 +59,43 @@ def handle_text_message(event):
     with ApiClient(line_bot_config) as api_client:
         line_bot_api = MessagingApi(api_client)
         user_message = event.message.text
+        if '潔牙偵測' in user_message:
+            messages = [
+                TextMessage(text='請上傳圖片')
+            ]
+        elif '查詢結果' in user_message:
+            messages = [
+                TextMessage(text='請輸入日期\n(格式：2024/07/01 或 2024.08.02)')
+            ]
+        else:
 
-        if match_text := re.search(r'\d{4}[-/.]\d{2}[-/.]\d{2}', user_message):
-            timestamp = match_text.group()
-            image_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / timestamp
+            if match_text := re.search(r'\d{4}[-/.]\d{2}[-/.]\d{2}', user_message):
+                timestamp = match_text.group()
+                image_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / timestamp
 
-            # Check if the record exists
-            if image_path.exists():
-                domain_name = 'https://dental-service.jieniguicare.org'
-                api_route = '/api/analysis/'
-                teeth_range_path = domain_name + api_route + f'teeth_range/{timestamp}/'
-                teeth_range_detect_path = domain_name + api_route + f'teeth_range_detect/{timestamp}/'
-                messages = [
-                    ImageMessage(
-                        original_content_url=teeth_range_path,
-                        preview_image_url=teeth_range_path),
-                    ImageMessage(
-                        original_content_url=teeth_range_detect_path,
-                        preview_image_url=teeth_range_detect_path)
-                ]
+                # Check if the analysis record exists
+                if image_path.exists():
+                    domain_name = 'https://dental-service.jieniguicare.org'
+                    api_route = '/api/analysis/'
+                    teeth_range_path = domain_name + api_route + f'teeth_range/{timestamp}/'
+                    teeth_range_detect_path = domain_name + api_route + f'teeth_range_detect/{timestamp}/'
+                    messages = [
+                        ImageMessage(
+                            original_content_url=teeth_range_path,
+                            preview_image_url=teeth_range_path),
+                        ImageMessage(
+                            original_content_url=teeth_range_detect_path,
+                            preview_image_url=teeth_range_detect_path)
+                    ]
+                else:
+                    messages = [
+                        TextMessage(text='沒有此筆資料！')
+                    ]
+            # Wrong date format
             else:
                 messages = [
-                    TextMessage(text='沒有此筆資料！')
+                    TextMessage(text='查詢日期格式錯誤')
                 ]
-        # Wrong date format
-        else:
-            messages = [
-                TextMessage(text='查詢日期格式錯誤')
-            ]
 
         # Reply message to user
         line_bot_api.reply_message(
