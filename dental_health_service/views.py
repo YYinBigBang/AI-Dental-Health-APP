@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # Standard libraries section
+import re
 from datetime import datetime, timedelta, timezone
 
 # Django section
@@ -57,12 +58,41 @@ def callback(request):
 def handle_text_message(event):
     with ApiClient(line_bot_config) as api_client:
         line_bot_api = MessagingApi(api_client)
+        user_message = event.message.text
 
+        if match_text := re.search(r'\d{4}[-/.]\d{2}[-/.]\d{2}', user_message):
+            timestamp = match_text.group()
+            image_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / timestamp
+
+            # Check if the record exists
+            if image_path.exists():
+                domain_name = 'https://dental-service.jieniguicare.org'
+                api_route = '/api/analysis/'
+                teeth_range_path = domain_name + api_route + f'teeth_range/{timestamp}/'
+                teeth_range_detect_path = domain_name + api_route + f'teeth_range_detect/{timestamp}/'
+                messages = [
+                    ImageMessage(
+                        original_content_url=teeth_range_path,
+                        preview_image_url=teeth_range_path),
+                    ImageMessage(
+                        original_content_url=teeth_range_detect_path,
+                        preview_image_url=teeth_range_detect_path)
+                ]
+            else:
+                messages = [
+                    TextMessage(text='沒有此筆資料！')
+                ]
+        # Wrong date format
+        else:
+            messages = [
+                TextMessage(text='查詢日期格式錯誤')
+            ]
+
+        # Reply message to user
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[TextMessage(text=event.message.text)]
-            )
+                messages=messages)
         )
 
 
