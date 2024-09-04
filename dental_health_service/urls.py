@@ -3,7 +3,8 @@ from .views import (test_endpoint,
                     upload_image,
                     download_image,
                     analyze_image,
-                    get_analysis_result)
+                    get_analysis_result,
+                    callback)
 
 urlpatterns = [
     path('ping/', test_endpoint, name='test_endpoint'),
@@ -11,4 +12,5 @@ urlpatterns = [
     path('images/<str:filename>/', download_image, name='download_image'),
     path('analysis/', analyze_image, name='analyze_image'),
     path('analysis/<str:image_name>/<str:timestamp>/', get_analysis_result, name='get_analysis_result'),
+    path('linebot/callback/', callback, name='linebot_callback'),
 ]
