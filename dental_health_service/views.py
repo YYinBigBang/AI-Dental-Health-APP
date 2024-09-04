@@ -153,7 +153,7 @@ def handle_content_message(event):
 
             # Integrate all the messages
             messages = [
-                TextMessage(text=f'日期：folder_name'),
+                TextMessage(text=f'日期：{folder_name}'),
                 ImageMessage(
                     original_content_url=teeth_range_path,
                     preview_image_url=teeth_range_path),
