@@ -113,8 +113,11 @@ def handle_content_message(event):
         image_content = line_bot_blob_api.get_message_content(message_id=event.message.id)
 
         # Show loading animation
-        loading_request = ShowLoadingAnimationRequest(chatId=event.source.user_id, duration=10)
-        line_bot_api.show_loading_animation(event.reply_token, loading_request)
+        try:
+            loading_request = ShowLoadingAnimationRequest(chatId=event.source.user_id, loadingSeconds=10)
+            line_bot_api.show_loading_animation(loading_request)
+        except Exception as e:
+            logger.warning('LinBot loading animation failure!')
 
         # Get the current UTC time and convert to GMT+8 time zone
         gmt_plus8_time = datetime.now(timezone.utc) + timedelta(hours=8)
