@@ -59,6 +59,14 @@ def handle_text_message(event):
     with ApiClient(line_bot_config) as api_client:
         line_bot_api = MessagingApi(api_client)
         user_message = event.message.text
+
+        # Show loading animation
+        try:
+            loading_request = ShowLoadingAnimationRequest(chatId=event.source.user_id, loadingSeconds=10)
+            line_bot_api.show_loading_animation(loading_request)
+        except Exception as e:
+            logger.warning('LinBot loading animation failure!')
+
         if '潔牙偵測' in user_message:
             messages = [
                 TextMessage(text='請上傳圖片')
@@ -135,25 +143,26 @@ def handle_content_message(event):
             result_comment = DentalPlaqueAnalysis.analyze_dental_plaque(save_path)
         except Exception as e:
             logger.error(f"Error during dental plaque analysis: {e}")
-            return Response({
-                "error": "An error occurred during analysis image"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            result_comment = None
 
-        domain_name = 'https://dental-service.jieniguicare.org'
-        api_route = '/api/analysis/'
-        teeth_range_path = domain_name + api_route + f'teeth_range/{folder_name}/'
-        teeth_range_detect_path = domain_name + api_route + f'teeth_range_detect/{folder_name}/'
+        if result_comment:
+            domain_name = 'https://dental-service.jieniguicare.org'
+            api_route = '/api/analysis/'
+            teeth_range_path = domain_name + api_route + f'teeth_range/{folder_name}/'
+            teeth_range_detect_path = domain_name + api_route + f'teeth_range_detect/{folder_name}/'
 
-        # Integrate all the messages
-        messages = [
-            ImageMessage(
-                original_content_url=teeth_range_path,
-                preview_image_url=teeth_range_path),
-            ImageMessage(
-                original_content_url=teeth_range_detect_path,
-                preview_image_url=teeth_range_detect_path),
-            TextMessage(text=result_comment)
-        ]
+            # Integrate all the messages
+            messages = [
+                ImageMessage(
+                    original_content_url=teeth_range_path,
+                    preview_image_url=teeth_range_path),
+                ImageMessage(
+                    original_content_url=teeth_range_detect_path,
+                    preview_image_url=teeth_range_detect_path),
+                TextMessage(text=result_comment)
+            ]
+        else:
+            messages = [TextMessage(text='圖片分析失敗！')]
 
         # Send all messages to client
         line_bot_api.reply_message(
