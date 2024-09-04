@@ -122,7 +122,7 @@ def handle_content_message(event):
 
         # Show loading animation
         try:
-            loading_request = ShowLoadingAnimationRequest(chatId=event.source.user_id, loadingSeconds=10)
+            loading_request = ShowLoadingAnimationRequest(chatId=event.source.user_id, loadingSeconds=25)
             line_bot_api.show_loading_animation(loading_request)
         except Exception as e:
             logger.warning('LinBot loading animation failure!')
@@ -153,6 +153,7 @@ def handle_content_message(event):
 
             # Integrate all the messages
             messages = [
+                TextMessage(text=f'日期：folder_name'),
                 ImageMessage(
                     original_content_url=teeth_range_path,
                     preview_image_url=teeth_range_path),
