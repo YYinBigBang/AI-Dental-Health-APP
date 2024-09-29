@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'dental_health_service',
+    'user_management',
 ]
 
 MIDDLEWARE = [
@@ -119,8 +120,12 @@ WSGI_APPLICATION = 'AI_Dental_Health_APP.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DATABASE_NAME', 'ai_dental_db'),
+        'USER': os.environ.get('DATABASE_USER', 'ai_dental_user'),
+        'PASSWORD': os.environ.get('DATABASE_PASSWORD', '@squirtle1234#'),
+        'HOST': os.environ.get('DATABASE_HOST', 'localhost'),
+        'PORT': os.environ.get('DATABASE_PORT', '5432'),
     }
 }
 
