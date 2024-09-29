@@ -7,11 +7,13 @@ gunicorn==22.0.0
 line-bot-sdk==3.12.0
 matplotlib==3.9.1
 numpy==1.26.4
-pyee==11.1.0
 opencv-python==4.10.0.84
 opencv-python-headless==4.10.0.84
 pandas==2.2.2
 phonenumbers==8.13.46
+psycopg2-binary==2.9.6
+pyee==11.1.0
+python-dotenv==1.0.0
 PyYAML==6.0.1
 requests==2.32.3
 scikit-image==0.24.0
