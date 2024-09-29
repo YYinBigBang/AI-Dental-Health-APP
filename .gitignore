@@ -1,3 +1,9 @@
+# Secure Sensitive Information
+.env
+
+# server's log
+django_logs/
+
 # Python
 __pycache__/
 *.pyc
