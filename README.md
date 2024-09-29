@@ -77,6 +77,18 @@ docker build -t ai_dental_health_app .
 docker run -p 8000:8000 -e PORT=8000 ai_dental_health_app
 ```
 
+#### Apply Migrations:
+After setting up the database service, create and apply migrations:
+```docker
+docker-compose run django python manage.py makemigrations
+docker-compose run django python manage.py migrate
+```
+
+#### Create a Superuser for the Django:
+```docker
+docker-compose run django python manage.py createsuperuser
+```
+
 #### To obtain the SSL certificates for the first time, run Certbot directly:
 ```docker
 docker-compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d your_domain_or_ip --email your_email@example.com --agree-tos --no-eff-email
@@ -121,10 +133,10 @@ docker rmi $(docker images -q)
 
 ---
 
-### Improvements:
-> 1.Implement LineBot (webhook)
+### Pending features:
+> 1.Build a database for user management
 
-> 2.Transfer file access functionality to model.py (on going)
+> 2.Transfer file access functionality to model.py
 
 > 3.Implement a new feature for API return code
   - `returncode -> 0` API success.
@@ -135,3 +147,5 @@ docker rmi $(docker images -q)
   - `returncode -> 5` Unauthorized access.
 
 > 4.Implement a new feature for JWT (API token)
+
+> 5.Improve the teeth detection
