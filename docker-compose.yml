@@ -6,11 +6,18 @@ services:
     image: ai_dental_health_app
     container_name: ai_dental_health_app
     expose:
-      - "8000"  # Exposing the internal port for Nginx to proxy
+      - "8000"
     environment:
       - PORT=8000
+      - DATABASE_NAME=ai_dental_db
+      - DATABASE_USER=ai_dental_user
+      - DATABASE_PASSWORD=@squirtle1234#
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
     volumes:
-      - ./AI_Dental_Health_APP:/home/appuser/AI_Dental_Health_APP  # Mount the Django project to the host machine
+      - ./AI_Dental_Health_APP:/home/appuser/AI_Dental_Health_APP
+    depends_on:
+      - postgres
     restart: always
 
   nginx:
@@ -28,5 +35,19 @@ services:
     entrypoint: /bin/sh -c "nginx -g 'daemon off;'"
     restart: always
 
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=ai_dental_db
+      - POSTGRES_USER=ai_dental_user
+      - POSTGRES_PASSWORD=@squirtle1234#
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+    restart: always
+
 volumes:
   AI_Dental_Health_APP:
+  postgres_data:
