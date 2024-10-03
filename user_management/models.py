@@ -1,4 +1,5 @@
 
+import uuid
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from phonenumber_field.modelfields import PhoneNumberField
@@ -17,7 +18,13 @@ class User(AbstractUser):
     Custom user model that extends Django's AbstractUser.
     Additional common fields can be added here if necessary.
     """
-    pass
+    user_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    username = models.CharField(max_length=150, unique=False)
+    email = models.EmailField('email address', blank=True, null=True)
+    line_id = models.CharField(max_length=255, unique=False, blank=True, null=True)
+
+    def __str__(self):
+        return self.username
 
 
 class School(models.Model):
@@ -25,10 +32,11 @@ class School(models.Model):
     Represents a school.
     """
     name = models.CharField(max_length=255)
-    verified_code = models.CharField(max_length=255)
+    school_code = models.CharField(max_length=255)
 
     def __str__(self):
         return self.name
+
 
 class TeacherProfile(models.Model):
     """
@@ -41,7 +49,7 @@ class TeacherProfile(models.Model):
     phone_number = PhoneNumberField()
 
     def __str__(self):
-        return self.user.get_full_name()
+        return self.user.username()
 
 
 class Classroom(models.Model):
@@ -65,7 +73,7 @@ class ClassroomTeacher(models.Model):
     teacher = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.teacher.user.get_full_name()} teaches {self.classroom}"
+        return f"{self.teacher.user.username()} teaches {self.classroom}"
 
 
 class StudentProfile(models.Model):
@@ -73,13 +81,22 @@ class StudentProfile(models.Model):
     Stores additional information about a student, linked to a User.
     """
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    student_number = models.CharField(max_length=50, unique=True, db_index=True)
+    student_number = models.CharField(max_length=50, db_index=True)
+    school = models.ForeignKey(School, on_delete=models.CASCADE)
     classroom = models.ForeignKey(Classroom, on_delete=models.PROTECT)
     birth = models.DateField()
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
 
+    def save(self, *args, **kwargs):
+        if self.school != self.classroom.school:
+            raise ValueError("Student's school must match the classroom's school.")
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return self.user.get_full_name()
+        return self.user.username()
+
+    class Meta:
+        unique_together = (('student_number', 'school'),)
 
 
 class Parent(models.Model):
@@ -108,4 +125,4 @@ class ParentStudentRelationship(models.Model):
     relationship = models.CharField(max_length=50, choices=RELATIONSHIP_CHOICES)
 
     def __str__(self):
-        return f"{self.parent.parent_name} - {self.relationship} of {self.student.user.get_full_name()}"
+        return f"{self.parent.parent_name} - {self.relationship} of {self.student.user.username()}"

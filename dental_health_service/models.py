@@ -8,9 +8,8 @@ class TeethCleaningRecord(models.Model):
     """
     student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE)
     date_time = models.DateTimeField()
+    images_path = models.CharField(max_length=255, unique=True)
     dental_plaque_count = models.IntegerField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('student', 'date_time')

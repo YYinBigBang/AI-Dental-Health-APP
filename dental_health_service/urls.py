@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (test_endpoint,
+                    test_jwt_permission,
                     upload_image,
                     download_image,
                     analyze_image,
@@ -8,6 +9,7 @@ from .views import (test_endpoint,
 
 urlpatterns = [
     path('ping/', test_endpoint, name='test_endpoint'),
+    path('test_jwt/', test_jwt_permission, name='test_jwt_permission'),
     path('images/upload/', upload_image, name='upload_image'),
     path('images/<str:filename>/', download_image, name='download_image'),
     path('analysis/', analyze_image, name='analyze_image'),

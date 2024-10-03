@@ -159,10 +159,10 @@ class DentalPlaqueAnalysis:
         if im is not None:
             logger.info('Read teeth_range.png successfully.')
         else:
-            logger.error('Teeth not detected!')
-            return 'Failed on reading teeth_range.png!!'
+            logger.error('Failed on reading teeth_range.png!')
+            return
 
-        logger.info(f'Using Detection2 for single tooth prediction...')
+        logger.debug(f'Using Detection2 for single tooth prediction...')
 
         # Capture each tooth by the detection result of YOLO model.
         outputs = self.predictor(im)
@@ -190,7 +190,7 @@ class DentalPlaqueAnalysis:
             # Save single tooth image.
             single_tooth_img_path = str(self.teeth_folder / f'tooth_{i}.png')
             # cv2.imwrite(single_tooth_img_path, extracted_tooth_img)  # save file to local path
-            logger.info(f'save image {single_tooth_img_path}')
+            logger.debug(f'save image {single_tooth_img_path}')
             django_save_image(single_tooth_img_path, extracted_tooth_img)
             # Add the tooth alignment information to list.
             self.teeth_alignment_list.append(
@@ -254,7 +254,7 @@ class DentalPlaqueAnalysis:
             processed_tooth_img_name = Path(single_tooth_img_path).stem + '_imgr.png'
             processed_tooth_img_path = str(self.teeth_detect_folder / processed_tooth_img_name)
             # cv2.imwrite(processed_tooth_img_path, thresholded_image)  # save file to local path
-            logger.info(f'save image {processed_tooth_img_path}')
+            logger.debug(f'save image {processed_tooth_img_path}')
             django_save_image(processed_tooth_img_path, thresholded_image)
 
         # Save the composite image of full mouth teeth.
