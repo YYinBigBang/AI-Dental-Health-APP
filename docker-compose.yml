@@ -3,8 +3,8 @@ version: '3.8'
 services:
   django:
     build: .
-    image: ai_dental_health_app
-    container_name: ai_dental_health_app
+    image: django_server
+    container_name: django_server
     expose:
       - "8000"
     environment:
@@ -12,12 +12,12 @@ services:
       - DATABASE_NAME=ai_dental_db
       - DATABASE_USER=ai_dental_user
       - DATABASE_PASSWORD=@squirtle1234#
-      - DATABASE_HOST=postgres
+      - DATABASE_HOST=postgres_db
       - DATABASE_PORT=5432
     volumes:
-      - ./AI_Dental_Health_APP:/home/appuser/AI_Dental_Health_APP
+      - django_data:/home/appuser/AI_Dental_Health_APP/data/django
     depends_on:
-      - postgres
+      - postgres_db
     restart: always
 
   nginx:
@@ -35,19 +35,29 @@ services:
     entrypoint: /bin/sh -c "nginx -g 'daemon off;'"
     restart: always
 
-  postgres:
+  postgres_db:
     image: postgres:13
-    container_name: postgres
+    container_name: postgres_db
     environment:
       - POSTGRES_DB=ai_dental_db
       - POSTGRES_USER=ai_dental_user
       - POSTGRES_PASSWORD=@squirtle1234#
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     restart: always
 
 volumes:
-  AI_Dental_Health_APP:
+  django_data:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "/home/haoyu6875/docker_volumes/django_data"
   postgres_data:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      device: "/home/haoyu6875/docker_volumes/postgres_data"
