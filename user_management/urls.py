@@ -1,24 +1,25 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from .views import (
-    TeacherSignupView,
-    StudentSignupView,
-    ParentSignupView,
     LoginView,
-    TeacherProfileView,
-    ClassroomView,
-    StudentProfileView,
-    ParentProfileView,
-    ParentStudentView,
+    RegistrationViewSet,
+    TeacherProfileViewSet,
+    StudentProfileViewSet,
+    ParentProfileViewSet,
+    ClassroomViewSet,
+    ParentStudentRelationshipViewSet,
 )
 
+router = DefaultRouter()
+
+router.register(r'signup', RegistrationViewSet, basename='signup')
+router.register(r'teacher/profiles', TeacherProfileViewSet, basename='teacher-profiles')
+router.register(r'student/profiles', StudentProfileViewSet, basename='student-profiles')
+router.register(r'parent/profiles', ParentProfileViewSet, basename='parent-profiles')
+router.register(r'classrooms', ClassroomViewSet, basename='classrooms')
+router.register(r'parent-student-relationships', ParentStudentRelationshipViewSet, basename='parent-student-relationships')
+
 urlpatterns = [
-    path('signup/teacher/', TeacherSignupView.as_view(), name='teacher_signup'),
-    path('signup/student/', StudentSignupView.as_view(), name='student_signup'),
-    path('signup/parent/', ParentSignupView.as_view(), name='parent_signup'),
     path('login/', LoginView.as_view(), name='login'),
-    path('teacher/profile/', TeacherProfileView.as_view(), name='teacher_profile'),
-    path('teacher/classroom/<int:pk>/', ClassroomView.as_view(), name='teacher_classroom'),
-    path('student/profile/', StudentProfileView.as_view(), name='student_profile'),
-    path('parent/profile/', ParentProfileView.as_view(), name='parent_profile'),
-    path('parent/students/', ParentStudentView.as_view(), name='parent_students'),
+    path('', include(router.urls)),
 ]
