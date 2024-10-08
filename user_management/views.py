@@ -1,8 +1,10 @@
-from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import TeacherProfile, Classroom, StudentProfile, Parent, ParentStudentRelationship
 from .serializers import (
     TeacherSignupSerializer,
@@ -15,10 +17,6 @@ from .serializers import (
     ParentSerializer,
     ParentStudentRelationshipSerializer
 )
-from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-
-User = get_user_model()
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -35,15 +33,18 @@ class BaseSignupView(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        profile = serializer.save()
-        user = profile.user
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            'user': UserSerializer(user).data,
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-        }, status=status.HTTP_201_CREATED)
+        try:
+            serializer.is_valid(raise_exception=True)
+            profile = serializer.save()
+            user = profile.user
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'user': UserSerializer(user).data,
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'detail': 'User signup failed.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TeacherSignupView(BaseSignupView):

@@ -1,11 +1,9 @@
 from rest_framework import serializers
-from django.contrib.auth import get_user_model
+from rest_framework.validators import UniqueValidator
+from django.contrib.auth.models import User
 from .models import (
     TeacherProfile, StudentProfile, Parent, ParentStudentRelationship, School, Classroom
 )
-from rest_framework.validators import UniqueValidator
-
-User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
