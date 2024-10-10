@@ -1,12 +1,13 @@
 from rest_framework import serializers
-from django.contrib.auth.models import User
 from .models import (
+    User,
+    School,
     TeacherProfile,
+    Classroom,
+    ClassroomTeacher,
     StudentProfile,
     Parent,
-    ParentStudentRelationship,
-    School,
-    Classroom
+    ParentStudentRelationship
 )
 
 
@@ -15,7 +16,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password']
+        fields = ['id', 'username', 'password', 'full_name', 'email', 'line_id']
 
     def create(self, validated_data):
         password = validated_data.pop('password')
@@ -24,14 +25,11 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
-    def update(self, instance, validated_data):
-        password = validated_data.pop('password', None)
-        instance.username = validated_data.get('username', instance.username)
-        instance.email = validated_data.get('email', instance.email)
-        if password:
-            instance.set_password(password)
-        instance.save()
-        return instance
+
+class SchoolSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = School
+        fields = ['id', 'school_code', 'school_name', 'school_address']
 
 
 class TeacherProfileSerializer(serializers.ModelSerializer):
@@ -39,25 +37,52 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TeacherProfile
-        fields = ['id', 'user', 'school', 'gender', 'birth', 'phone_number']
+        fields = ['id', 'user', 'school', 'gender', 'birth', 'phone_number', 'teacher_email']
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
-        user = UserSerializer().create(user_data)
+        user_serializer = UserSerializer(data=user_data)
+        user_serializer.is_valid(raise_exception=True)
+        user = user_serializer.save()
         teacher_profile = TeacherProfile.objects.create(user=user, **validated_data)
         return teacher_profile
 
-    def update(self, instance, validated_data):
-        user_data = validated_data.pop('user', None)
-        if user_data:
-            UserSerializer().update(instance.user, user_data)
 
+class ClassroomSerializer(serializers.ModelSerializer):
+    school = serializers.PrimaryKeyRelatedField(queryset=School.objects.all())
+    teachers = serializers.PrimaryKeyRelatedField(queryset=TeacherProfile.objects.all(), many=True)
+
+    class Meta:
+        model = Classroom
+        fields = ['id', 'school', 'grade', 'class_name', 'teachers']
+
+    def create(self, validated_data):
+        teachers_data = validated_data.pop('teachers', [])
+        classroom = Classroom.objects.create(**validated_data)
+        classroom.teachers.set(teachers_data)
+        return classroom
+
+    def update(self, instance, validated_data):
+        teachers_data = validated_data.pop('teachers', [])
+        instance.grade = validated_data.get('grade', instance.grade)
+        instance.class_name = validated_data.get('class_name', instance.class_name)
         instance.school = validated_data.get('school', instance.school)
-        instance.gender = validated_data.get('gender', instance.gender)
-        instance.birth = validated_data.get('birth', instance.birth)
-        instance.phone_number = validated_data.get('phone_number', instance.phone_number)
         instance.save()
+        if teachers_data:
+            instance.teachers.set(teachers_data)
         return instance
+
+
+class ClassroomTeacherSerializer(serializers.ModelSerializer):
+    classroom = serializers.PrimaryKeyRelatedField(queryset=Classroom.objects.all())  # Referenced by primary key
+    teacher = serializers.PrimaryKeyRelatedField(queryset=TeacherProfile.objects.all())  # Referenced by primary key
+
+    class Meta:
+        model = ClassroomTeacher
+        fields = ['id', 'classroom', 'teacher']
+
+    def create(self, validated_data):
+        return ClassroomTeacher.objects.create(**validated_data)
 
 
 class StudentProfileSerializer(serializers.ModelSerializer):
@@ -65,59 +90,37 @@ class StudentProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StudentProfile
-        fields = ['id', 'user', 'student_number', 'classroom', 'birth', 'gender']
+        fields = ['id', 'user', 'student_id', 'school', 'classroom', 'birth', 'gender']
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
-        user = UserSerializer().create(user_data)
+        user_serializer = UserSerializer(data=user_data)
+        user_serializer.is_valid(raise_exception=True)
+        user = user_serializer.save()
         student_profile = StudentProfile.objects.create(user=user, **validated_data)
         return student_profile
 
-    def update(self, instance, validated_data):
-        user_data = validated_data.pop('user', None)
-        if user_data:
-            UserSerializer().update(instance.user, user_data)
-
-        instance.student_number = validated_data.get('student_number', instance.student_number)
-        instance.classroom = validated_data.get('classroom', instance.classroom)
-        instance.birth = validated_data.get('birth', instance.birth)
-        instance.gender = validated_data.get('gender', instance.gender)
-        instance.save()
-        return instance
-
 
 class ParentSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
-
     class Meta:
         model = Parent
-        fields = ['id', 'user', 'parent_name', 'phone_number']
+        fields = ['id', 'parent_name', 'phone_number']
 
     def create(self, validated_data):
-        user_data = validated_data.pop('user')
-        user = UserSerializer().create(user_data)
-        parent = Parent.objects.create(user=user, **validated_data)
-        return parent
+        return Parent.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
-        user_data = validated_data.pop('user', None)
-        if user_data:
-            UserSerializer().update(instance.user, user_data)
-
         instance.parent_name = validated_data.get('parent_name', instance.parent_name)
         instance.phone_number = validated_data.get('phone_number', instance.phone_number)
         instance.save()
         return instance
 
 
-class ClassroomSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Classroom
-        fields = '__all__'
-
-
 class ParentStudentRelationshipSerializer(serializers.ModelSerializer):
+    parent = serializers.PrimaryKeyRelatedField(queryset=Parent.objects.all())
+    student = serializers.PrimaryKeyRelatedField(queryset=StudentProfile.objects.all())
+
     class Meta:
         model = ParentStudentRelationship
-        fields = '__all__'
+        fields = ['id', 'parent', 'student', 'relationship']
 
