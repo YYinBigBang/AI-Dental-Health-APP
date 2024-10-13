@@ -1,12 +1,32 @@
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
+
+from rest_framework import generics, viewsets, status
+from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth import get_user_model
-from django.contrib.auth import login, logout
-from django.db import transaction
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import School, TeacherProfile, Classroom, StudentProfile, Parent, ParentStudentRelationship
+from rest_framework_simplejwt.views import TokenObtainPairView
+from django.db import transaction
+from django.contrib.auth import get_user_model, authenticate
+
+from .models import (
+    School,
+    TeacherProfile,
+    Classroom,
+    StudentProfile,
+    Parent,
+    ParentStudentRelationship
+)
+from .permissions import (
+    IsSuperuser,
+    IsTeacher,
+    IsStudent,
+    IsParent,
+    CanManageClassroom,
+    CanManageStudents,
+    CanManageParents,
+    CanManageParentStudentRelationship,
+    IsOwner
+)
 from .serializers import (
     UserSerializer,
     SchoolSerializer,
@@ -21,7 +41,6 @@ User = get_user_model()
 
 
 def get_tokens_for_user(user):
-    """JWT Helper for generating tokens"""
     refresh = RefreshToken.for_user(user)
     return {
         'refresh': str(refresh),
@@ -29,285 +48,230 @@ def get_tokens_for_user(user):
     }
 
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def signup(request):
-    serializer = UserSerializer(data=request.data)
-    if serializer.is_valid():
-        with transaction.atomic():
-            user = serializer.save()
+class SignupView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            with transaction.atomic():
+                user = serializer.save()
+                tokens = get_tokens_for_user(user)
+            return Response({
+                'user': UserSerializer(user).data,
+                'tokens': tokens
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+        user = authenticate(username=username, password=password)
+
+        if user:
             tokens = get_tokens_for_user(user)
-        return Response({
-            'user': UserSerializer(user).data,
-            'tokens': tokens
-        }, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({
+                'user': UserSerializer(user).data,
+                'tokens': tokens
+            }, status=status.HTTP_200_OK)
+        return Response({'detail': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def login_view(request):
-    username = request.data.get('username')
-    password = request.data.get('password')
-    user = User.objects.filter(username=username).first()
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    if user and user.check_password(password):
-        login(request, user)
-        return Response({
-            'user': UserSerializer(user).data,
-            'tokens': get_tokens_for_user(user)
-        }, status=status.HTTP_200_OK)
-    return Response({'detail': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def logout_view(request):
-    try:
-        refresh_token = request.data['refresh']
-        token = RefreshToken(refresh_token)
-        token.blacklist()
-        logout(request)
-        return Response({'detail': 'Successfully logged out'}, status=status.HTTP_200_OK)
-    except Exception as e:
-        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response({'detail': 'Refresh token is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({'detail': 'Successfully logged out'}, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({'detail': 'Invalid refresh token'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
-def school_list_create(request):
-    if request.method == 'GET':
-        schools = School.objects.all()
-        serializer = SchoolSerializer(schools, many=True)
-        return Response(serializer.data)
+class SchoolViewSet(viewsets.ModelViewSet):
+    """School CRUD - Only Superusers can manage schools."""
+    queryset = School.objects.all()
+    serializer_class = SchoolSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, IsSuperuser]
 
-    if request.method == 'POST':
-        serializer = SchoolSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            permission_classes = [IsAuthenticated, IsSuperuser]
+        else:
+            permission_classes = [IsAuthenticatedOrReadOnly]
+        return [permission() for permission in permission_classes]
 
 
-@api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def school_detail(request, pk):
-    try:
-        school = School.objects.get(pk=pk)
-    except School.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+class TeacherProfileViewSet(viewsets.ModelViewSet):
+    """Teacher CRUD: Teachers can only manage their classrooms."""
+    serializer_class = TeacherProfileSerializer
+    permission_classes = [IsAuthenticated, IsTeacher, IsOwner]
 
-    if request.method == 'GET':
-        serializer = SchoolSerializer(school)
-        return Response(serializer.data)
-
-    elif request.method == 'PUT':
-        serializer = SchoolSerializer(school, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
-        school.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def get_queryset(self):
+        teacher_profile = getattr(self.request.user, 'teacherprofile', None)
+        if teacher_profile:
+            return TeacherProfile.objects.filter(pk=teacher_profile.pk)
+        return TeacherProfile.objects.none()
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
-def teacher_list_create(request):
-    if request.method == 'GET':
-        teachers = TeacherProfile.objects.all()
-        serializer = TeacherProfileSerializer(teachers, many=True)
-        return Response(serializer.data)
+class ClassroomViewSet(viewsets.ModelViewSet):
+    """Classroom CRUD: Teachers can manage classrooms they are assigned to."""
+    serializer_class = ClassroomSerializer
+    permission_classes = [IsAuthenticated, IsTeacher, CanManageClassroom]
 
-    if request.method == 'POST':
-        serializer = TeacherProfileSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_queryset(self):
+        teacher = self.request.user.teacherprofile
+        return Classroom.objects.filter(teachers=teacher)
 
-
-@api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def teacher_detail(request, pk):
-    try:
-        teacher = TeacherProfile.objects.get(pk=pk)
-    except TeacherProfile.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'GET':
-        serializer = TeacherProfileSerializer(teacher)
-        return Response(serializer.data)
-
-    elif request.method == 'PUT':
-        serializer = TeacherProfileSerializer(teacher, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
-        teacher.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def perform_create(self, serializer):
+        # Ensure that the classroom is linked to the teacher creating it
+        teacher = self.request.user.teacherprofile
+        classroom = serializer.save()
+        classroom.teachers.add(teacher)
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
-def classroom_list_create(request):
-    if request.method == 'GET':
-        classrooms = Classroom.objects.all()
-        serializer = ClassroomSerializer(classrooms, many=True)
-        return Response(serializer.data)
+class StudentProfileViewSet(viewsets.ModelViewSet):
+    """
+    Student CRUD:
+    Teachers can manage students in their classroom.
+    Students can only update their own profiles.
+    """
+    serializer_class = StudentProfileSerializer
+    permission_classes = [IsAuthenticated]
 
-    if request.method == 'POST':
-        serializer = ClassroomSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_permissions(self):
+        if self.action in ['retrieve', 'update', 'partial_update']:
+            # Students can only access and update their own profiles
+            if hasattr(self.request.user, 'studentprofile'):
+                return [IsStudent(), IsOwner()]
+            # Teachers can manage students in their classroom
+            elif hasattr(self.request.user, 'teacherprofile'):
+                return [IsTeacher(), CanManageStudents()]
 
+        # Only teachers can perform these actions
+        elif self.action in ['create', 'list', 'destroy']:
+            if hasattr(self.request.user, 'teacherprofile'):
+                return [IsTeacher(), CanManageStudents()]
 
-@api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def classroom_detail(request, pk):
-    try:
-        classroom = Classroom.objects.get(pk=pk)
-    except Classroom.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+        # Fallback to default permission handling
+        return super().get_permissions()
 
-    if request.method == 'GET':
-        serializer = ClassroomSerializer(classroom)
-        return Response(serializer.data)
-
-    elif request.method == 'PUT':
-        serializer = ClassroomSerializer(classroom, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
-        classroom.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def get_queryset(self):
+        if hasattr(self.request.user, 'teacherprofile'):
+            teacher = self.request.user.teacherprofile
+            return StudentProfile.objects.filter(classroom__teachers=teacher)
+        elif hasattr(self.request.user, 'studentprofile'):
+            student = self.request.user.studentprofile
+            return StudentProfile.objects.filter(pk=student.pk)
+        else:
+            return StudentProfile.objects.none()
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
-def student_list_create(request):
-    if request.method == 'GET':
-        students = StudentProfile.objects.all()
-        serializer = StudentProfileSerializer(students, many=True)
-        return Response(serializer.data)
+class ParentViewSet(viewsets.ModelViewSet):
+    """
+    Parent CRUD:
+    Teachers can manage parents of students in their classroom.
+    Parents can view and update their own profiles.
+    Students can view their parents.
+    """
+    serializer_class = ParentSerializer
+    permission_classes = [IsAuthenticated]
 
-    if request.method == 'POST':
-        serializer = StudentProfileSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_permissions(self):
+        if hasattr(self.request.user, 'teacherprofile'):
+            # Teachers can manage
+            return [IsTeacher(), CanManageParents()]
+        elif hasattr(self.request.user, 'parent'):
+            # Parents can view and update their own data
+            if self.action in ['retrieve', 'update', 'partial_update']:
+                return [IsParent(), IsOwner()]
+            else:
+                return [IsParent()]
+        elif hasattr(self.request.user, 'studentprofile'):
+            # Students can only view
+            if self.action in ['list', 'retrieve']:
+                return [IsStudent()]
+            else:
+                return [IsAuthenticated()]
+        else:
+            return [IsAuthenticated()]
 
-
-@api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def student_detail(request, pk):
-    try:
-        student = StudentProfile.objects.get(pk=pk)
-    except StudentProfile.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'GET':
-        serializer = StudentProfileSerializer(student)
-        return Response(serializer.data)
-
-    elif request.method == 'PUT':
-        serializer = StudentProfileSerializer(student, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
-        student.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
-def parent_list_create(request):
-    if request.method == 'GET':
-        parents = Parent.objects.all()
-        serializer = ParentSerializer(parents, many=True)
-        return Response(serializer.data)
-
-    if request.method == 'POST':
-        serializer = ParentSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def parent_detail(request, pk):
-    try:
-        parent = Parent.objects.get(pk=pk)
-    except Parent.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'GET':
-        serializer = ParentSerializer(parent)
-        return Response(serializer.data)
-
-    elif request.method == 'PUT':
-        serializer = ParentSerializer(parent, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
-        parent.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def get_queryset(self):
+        if hasattr(self.request.user, 'teacherprofile'):
+            teacher = self.request.user.teacherprofile
+            # Get parents of students in the teacher's classroom
+            student_ids = StudentProfile.objects.filter(
+                classroom__teachers=teacher
+            ).values_list('id', flat=True)
+            parent_ids = ParentStudentRelationship.objects.filter(
+                student_id__in=student_ids
+            ).values_list('parent_id', flat=True)
+            return Parent.objects.filter(id__in=parent_ids)
+        elif hasattr(self.request.user, 'parent'):
+            # Parent can view their own profile
+            parent = self.request.user.parent
+            return Parent.objects.filter(pk=parent.pk)
+        elif hasattr(self.request.user, 'studentprofile'):
+            # Students can view their parents
+            student = self.request.user.studentprofile
+            parent_ids = ParentStudentRelationship.objects.filter(
+                student=student
+            ).values_list('parent_id', flat=True)
+            return Parent.objects.filter(id__in=parent_ids)
+        else:
+            return Parent.objects.none()
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
-def parent_student_relationship_list_create(request):
-    if request.method == 'GET':
-        relationships = ParentStudentRelationship.objects.all()
-        serializer = ParentStudentRelationshipSerializer(relationships, many=True)
-        return Response(serializer.data)
+class ParentStudentRelationshipViewSet(viewsets.ModelViewSet):
+    """
+    Parent-Student Relationship CRUD:
+    Teachers can manage relationships for students in their classroom.
+    Parents and students can view their relationships.
+    """
+    serializer_class = ParentStudentRelationshipSerializer
+    permission_classes = [IsAuthenticated]
 
-    if request.method == 'POST':
-        serializer = ParentStudentRelationshipSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_permissions(self):
+        if hasattr(self.request.user, 'teacherprofile'):
+            # Teachers can manage
+            return [IsTeacher(), CanManageParentStudentRelationship()]
+        elif hasattr(self.request.user, 'parent'):
+            # Parents can view and update their own data
+            if self.action in ['retrieve', 'update', 'partial_update']:
+                return [IsParent(), IsOwner()]
+            else:
+                return [IsParent()]
+        elif hasattr(self.request.user, 'studentprofile'):
+            # Students can only view
+            if self.action in ['list', 'retrieve']:
+                return [IsStudent()]
+            else:
+                return [IsAuthenticated()]
+        else:
+            return [IsAuthenticated()]
 
+    def get_queryset(self):
+        if hasattr(self.request.user, 'teacherprofile'):
+            teacher = self.request.user.teacherprofile
+            # Get relationships for students in the teacher's classroom
+            student_ids = StudentProfile.objects.filter(
+                classroom__teachers=teacher
+            ).values_list('id', flat=True)
+            return ParentStudentRelationship.objects.filter(student_id__in=student_ids)
+        elif hasattr(self.request.user, 'parent'):
+            parent = self.request.user.parent
+            return ParentStudentRelationship.objects.filter(parent=parent)
+        elif hasattr(self.request.user, 'studentprofile'):
+            student = self.request.user.studentprofile
+            return ParentStudentRelationship.objects.filter(student=student)
+        else:
+            return ParentStudentRelationship.objects.none()
 
-@api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def parent_student_relationship_detail(request, pk):
-    try:
-        relationship = ParentStudentRelationship.objects.get(pk=pk)
-    except ParentStudentRelationship.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'GET':
-        serializer = ParentStudentRelationshipSerializer(relationship)
-        return Response(serializer.data)
-
-    elif request.method == 'PUT':
-        serializer = ParentStudentRelationshipSerializer(relationship, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    elif request.method == 'DELETE':
-        relationship.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)

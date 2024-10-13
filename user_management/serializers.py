@@ -102,14 +102,26 @@ class StudentProfileSerializer(serializers.ModelSerializer):
 
 
 class ParentSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+
     class Meta:
         model = Parent
-        fields = ['id', 'parent_name', 'phone_number']
+        fields = ['id', 'user', 'parent_name', 'phone_number']
 
     def create(self, validated_data):
-        return Parent.objects.create(**validated_data)
+        user_data = validated_data.pop('user')
+        user_serializer = UserSerializer(data=user_data)
+        user_serializer.is_valid(raise_exception=True)
+        user = user_serializer.save()
+        parent = Parent.objects.create(user=user, **validated_data)
+        return parent
 
     def update(self, instance, validated_data):
+        user_data = validated_data.pop('user', None)
+        if user_data:
+            user_serializer = UserSerializer(instance.user, data=user_data, partial=True)
+            user_serializer.is_valid(raise_exception=True)
+            user_serializer.save()
         instance.parent_name = validated_data.get('parent_name', instance.parent_name)
         instance.phone_number = validated_data.get('phone_number', instance.phone_number)
         instance.save()
