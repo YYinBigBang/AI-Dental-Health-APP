@@ -5,7 +5,9 @@ from .views import (test_endpoint,
                     download_image,
                     analyze_image,
                     get_analysis_result,
-                    callback)
+                    callback,
+                    teeth_cleaning_record_list,
+                    teeth_cleaning_record_detail)
 
 urlpatterns = [
     path('ping/', test_endpoint, name='test_endpoint'),
@@ -15,4 +17,6 @@ urlpatterns = [
     path('analysis/', analyze_image, name='analyze_image'),
     path('analysis/<str:image_name>/<str:timestamp>/', get_analysis_result, name='get_analysis_result'),
     path('linebot/callback/', callback, name='linebot_callback'),
+    path('teeth-cleaning-records/', teeth_cleaning_record_list, name='teeth_cleaning_record_list'),
+    path('teeth-cleaning-records/<int:pk>/', teeth_cleaning_record_detail, name='teeth_cleaning_record_detail'),
 ]

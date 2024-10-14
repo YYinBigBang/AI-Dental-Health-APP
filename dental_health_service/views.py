@@ -9,12 +9,12 @@ from datetime import datetime, timedelta, timezone
 # Django section
 from django.conf import settings
 from django.http import HttpResponse, Http404, HttpResponseBadRequest
-from django.shortcuts import render
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.views.decorators.csrf import csrf_exempt
 from .models import TeethCleaningRecord
-from user_management.models import StudentProfile, User
+from .serializers import TeethCleaningRecordSerializer
+from user_management.models import User, StudentProfile, ParentStudentRelationship
 
 # Rest Framework section
 from rest_framework.decorators import api_view, permission_classes
@@ -46,15 +46,9 @@ line_bot_config = Configuration(access_token=settings.LINE_CHANNEL_ACCESS_TOKEN)
 line_bot_handler = WebhookHandler(settings.LINE_CHANNEL_SECRET)
 
 
-class UnauthorizedAccessException(Exception):
-    """Exception raised when an unauthorized user attempts to access a protected resource."""
-    pass
-
-
 @csrf_exempt
 @api_view(['POST'])
 def callback(request):
-    """The endpoint for receiving LINE messages."""
     signature = request.META['HTTP_X_LINE_SIGNATURE']
     body = request.body.decode('utf-8')
 
@@ -65,34 +59,6 @@ def callback(request):
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
     return Response(status=status.HTTP_200_OK)
-
-
-def user_authentication(func):
-    """A decorator to validate the user before handling the request."""
-    @wraps(func)
-    def wrapper(event, *args, **kwargs):
-        user_id = event.source.user_id
-        try:
-            user = User.objects.get(line_id=user_id)
-            return func(event, *args, **kwargs)
-        except User.DoesNotExist:
-            logger.info('LINE user not found in the database!')
-            with ApiClient(line_bot_config) as api_client:
-                line_bot_api = MessagingApi(api_client)
-                line_bot_api.reply_message(
-                    ReplyMessageRequest(
-                        reply_token=event.reply_token,
-                        messages=[
-                            TextMessage(text='您的LINE帳號尚未註冊於系統！'),
-                            TextMessage(text='請先向管理者註冊後再使用此功能，謝謝！')
-                        ]
-                    )
-                )
-            return None
-        except Exception as e:
-            logger.error(f'Error occurred during user validation: {e}')
-            return None
-    return wrapper
 
 
 @line_bot_handler.add(MessageEvent, message=TextMessageContent)
@@ -114,10 +80,10 @@ def handle_text_message(event):
             ]
         elif '查詢結果' in user_message:
             messages = [
-                TextMessage(text='請輸入日期\n(格式：2024-07-07_20-13-14_91adff)')
+                TextMessage(text='請輸入日期\n(格式：2024-07-07_20-13-14)')
             ]
         else:
-            regex = r'\d{4}[-./]\d{2}[-./]\d{2}[-._/]\d{2}[-./]\d{2}[-./]\d{2}[_]\w{6}'
+            regex = r'\d{4}[-./]\d{2}[-./]\d{2}[-._/]\d{2}[-./]\d{2}[-./]\d{2}'
             if match_text := re.search(regex, user_message):
                 timestamp = match_text.group()
                 image_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / timestamp
@@ -159,8 +125,6 @@ def handle_content_message(event):
     with ApiClient(line_bot_config) as api_client:
         line_bot_api = MessagingApi(api_client)
         line_bot_blob_api = MessagingApiBlob(api_client)
-        # Retrieve the user from the event
-        line_user_id = event.source.user_id
         image_content = line_bot_blob_api.get_message_content(message_id=event.message.id)
 
         # Show loading animation
@@ -170,37 +134,33 @@ def handle_content_message(event):
         except Exception as e:
             logger.warning('LinBot loading animation failure!')
 
-        for _ in range(1):
-            # Get the current UTC time and convert to GMT+8 time zone
-            gmt_plus8_time = datetime.now(timezone.utc) + timedelta(hours=8)
-            # Get first 6 characters of the UUID
-            unique_id = str(uuid.uuid4())[:6]
-            # add uuid to the folder name to avoid duplication
-            folder_name = gmt_plus8_time.strftime('%Y-%m-%d_%H-%M-%S') + '_' + unique_id
-            save_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / folder_name
-            save_path.mkdir(parents=True, exist_ok=True)
-            image_path = save_path / 'original_image.png'
-            # save image
-            default_storage.save(str(image_path), ContentFile(image_content))
+        # Get the current UTC time and convert to GMT+8 time zone
+        gmt_plus8_time = datetime.now(timezone.utc) + timedelta(hours=8)
+        # Get first 6 characters of the UUID
+        unique_id = str(uuid.uuid4())[:6]
+        # add uuid to the folder name to avoid duplication
+        folder_name = gmt_plus8_time.strftime('%Y-%m-%d_%H-%M-%S') + '_' + unique_id
+        save_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / folder_name
+        save_path.mkdir(parents=True, exist_ok=True)
 
-            try:
-                # Invoke analysis API for image processing
-                result_comment = DentalPlaqueAnalysis.analyze_dental_plaque(save_path)
-                if not result_comment:
-                    raise Exception('API returned empty result')
-            except Exception as e:
-                result_comment = '圖片分析失敗！'
-                logger.error(f"Error during dental plaque analysis: {e}")
-                messages = [TextMessage(text=result_comment)]
-                break
+        # save image
+        image_path = save_path / 'original_image.png'
+        default_storage.save(str(image_path), ContentFile(image_content))
 
-            # Prepare the image path for sending to client
+        try:
+            # Invoke analysis API for image processing
+            result_comment = DentalPlaqueAnalysis.analyze_dental_plaque(save_path)
+        except Exception as e:
+            logger.error(f"Error during dental plaque analysis: {e}")
+            result_comment = None
+
+        if result_comment:
             domain_name = 'https://dental-service.jieniguicare.org'
             api_route = '/api/analysis/'
             teeth_range_path = domain_name + api_route + f'teeth_range/{folder_name}/'
             teeth_range_detect_path = domain_name + api_route + f'teeth_range_detect/{folder_name}/'
 
-            # Integrate all the messages for sending to client
+            # Integrate all the messages
             messages = [
                 TextMessage(text=f'時間：{folder_name}'),
                 ImageMessage(
@@ -211,20 +171,10 @@ def handle_content_message(event):
                     preview_image_url=teeth_range_detect_path),
                 TextMessage(text=result_comment)
             ]
+        else:
+            messages = [TextMessage(text='圖片分析失敗！')]
 
-        # Create the TeethCleaningRecord
-        user = User.objects.get(line_id=line_user_id)
-        student = StudentProfile.objects.get(user=user)
-        teeth_cleaning_record = TeethCleaningRecord(
-            student=student,
-            date_time=gmt_plus8_time,
-            images_path=folder_name,
-            dental_plaque_count=result_comment
-        )
-        # Save the record to the database
-        teeth_cleaning_record.save()
-
-        # Send all the messages to client
+        # Send all messages to client
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
@@ -341,3 +291,75 @@ def get_analysis_result(request, image_name, timestamp):
     with open(image_path, 'rb') as f:
         return HttpResponse(f.read(), content_type='image/png')
 
+
+def get_authorized_student_ids(user):
+    """Return the list of student IDs the user is authorized to access."""
+    if hasattr(user, 'studentprofile'):
+        return [user.studentprofile.id]
+    elif hasattr(user, 'parent'):
+        return user.parent.parentstudentrelationship_set.values_list('student_id', flat=True)
+    elif hasattr(user, 'teacherprofile'):
+        return StudentProfile.objects.filter(classroom__teachers=user.teacherprofile).values_list('id', flat=True)
+    return []
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def teeth_cleaning_record_list(request):
+    """An endpoint to list and create teeth cleaning records."""
+    user = request.user
+
+    if request.method == 'GET':
+        student_ids = get_authorized_student_ids(user)
+        if not student_ids:
+            return Response({'detail': 'Not authorized to view records.'}, status=status.HTTP_403_FORBIDDEN)
+
+        records = TeethCleaningRecord.objects.filter(student_id__in=student_ids)
+        serializer = TeethCleaningRecordSerializer(records, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = TeethCleaningRecordSerializer(data=request.data)
+        if serializer.is_valid():
+            student = serializer.validated_data.get('student')
+            student_ids = get_authorized_student_ids(user)
+
+            if student.id not in student_ids:
+                return Response({'detail': 'Not authorized to create record for this student.'},
+                                status=status.HTTP_403_FORBIDDEN)
+
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def teeth_cleaning_record_detail(request, pk):
+    """An endpoint to retrieve, update, or delete a teeth cleaning record."""
+    try:
+        record = TeethCleaningRecord.objects.get(pk=pk)
+    except TeethCleaningRecord.DoesNotExist:
+        return Response({'detail': 'Record not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    user = request.user
+    student_ids = get_authorized_student_ids(user)
+
+    if record.student_id not in student_ids:
+        return Response({'detail': 'Not authorized to access this record.'}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == 'GET':
+        serializer = TeethCleaningRecordSerializer(record)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = TeethCleaningRecordSerializer(record, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        record.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
