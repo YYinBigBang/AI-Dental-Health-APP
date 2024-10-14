@@ -112,6 +112,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
 
 class TeacherProfileViewSet(viewsets.ModelViewSet):
     """Teacher CRUD: Teachers can only manage their classrooms."""
+    queryset = TeacherProfile.objects.all()
     serializer_class = TeacherProfileSerializer
     permission_classes = [IsAuthenticated, IsTeacher, IsOwner]
 
@@ -124,6 +125,7 @@ class TeacherProfileViewSet(viewsets.ModelViewSet):
 
 class ClassroomViewSet(viewsets.ModelViewSet):
     """Classroom CRUD: Teachers can manage classrooms they are assigned to."""
+    queryset = Classroom.objects.all()
     serializer_class = ClassroomSerializer
     permission_classes = [IsAuthenticated, IsTeacher, CanManageClassroom]
 
@@ -144,6 +146,7 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
     Teachers can manage students in their classroom.
     Students can only update their own profiles.
     """
+    queryset = StudentProfile.objects.all()
     serializer_class = StudentProfileSerializer
     permission_classes = [IsAuthenticated]
 
@@ -182,6 +185,7 @@ class ParentViewSet(viewsets.ModelViewSet):
     Parents can view and update their own profiles.
     Students can view their parents.
     """
+    queryset = Parent.objects.all()
     serializer_class = ParentSerializer
     permission_classes = [IsAuthenticated]
 
@@ -236,6 +240,7 @@ class ParentStudentRelationshipViewSet(viewsets.ModelViewSet):
     Teachers can manage relationships for students in their classroom.
     Parents and students can view their relationships.
     """
+    queryset = ParentStudentRelationship.objects.all()
     serializer_class = ParentStudentRelationshipSerializer
     permission_classes = [IsAuthenticated]
 
