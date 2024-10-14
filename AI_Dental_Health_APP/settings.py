@@ -69,6 +69,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 SIMPLE_JWT = {
@@ -81,6 +82,13 @@ SIMPLE_JWT = {
 AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
 )
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Dental Health API',
+    'DESCRIPTION': 'Takes photo of teeth and analyze the dental plaque count.',
+    'VERSION': '3.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
 
 ALLOWED_HOSTS = ['*']
 # ALLOWED_HOSTS = [
@@ -107,7 +115,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
-    'rest_framework_docs',
+    'drf_spectacular',
     'dental_health_service',
     'user_management',
 ]
