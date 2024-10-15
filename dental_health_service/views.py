@@ -48,6 +48,7 @@ line_bot_handler = WebhookHandler(settings.LINE_CHANNEL_SECRET)
 
 @csrf_exempt
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def callback(request):
     signature = request.META['HTTP_X_LINE_SIGNATURE']
     body = request.body.decode('utf-8')
