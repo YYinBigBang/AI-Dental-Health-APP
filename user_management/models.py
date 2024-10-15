@@ -15,8 +15,8 @@ GENDER_CHOICES = [
 class User(AbstractUser):
     """Custom user model that extends Django's AbstractUser."""
     # username will be used as the user ID, and it is unique.
-    full_name = models.CharField(max_length=32, unique=False)  # full name of the user
-    line_id = models.CharField(max_length=32, unique=False, blank=True, null=True)
+    full_name = models.CharField(max_length=32, blank=True, null=True)  # full name of the user
+    line_id = models.CharField(max_length=32, blank=True, null=True)
 
     def __str__(self):
         return self.username
