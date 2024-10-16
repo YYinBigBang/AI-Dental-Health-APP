@@ -22,7 +22,9 @@ RUN apt-get update && \
     libjpeg-dev \
     libpng-dev \
     libgl1 \
-    libglib2.0-0 && \
+    libglib2.0-0 \
+    postgresql-client \
+    libpq-dev && \
     ln -sv /usr/bin/python3.10 /usr/bin/python3 && \
     ln -sv /usr/bin/python3.10 /usr/bin/python && \
     wget https://bootstrap.pypa.io/get-pip.py && \
