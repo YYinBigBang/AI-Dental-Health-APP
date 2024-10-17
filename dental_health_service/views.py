@@ -38,7 +38,7 @@ from linebot.v3.messaging import (
 )
 
 # Custom section
-from .django_utils import logger, timelog
+from .django_utils import logger, timelog, standard_response
 from .ai_integrations.plaque_detection import DentalPlaqueAnalysis
 
 logger.info("========= Starting the API service =========")
@@ -189,7 +189,7 @@ def handle_content_message(event):
 def test_endpoint(request):
     """A test endpoint to check if the API is working."""
     logger.info('[GET]Response message: Hi there, API is working~')
-    return Response({"message": "Hi there, API is working~"})
+    return standard_response(message="Hi there, API is working~")
 
 
 @api_view(['GET'])
@@ -198,26 +198,28 @@ def test_endpoint(request):
 def test_jwt_permission(request):
     """A test endpoint to check if the JWT permission is working."""
     logger.info('[GET]Response message: Greetings, you have permission to access this endpoint')
-    return Response({"message": "Greetings, you have permission to access this endpoint"})
+    return standard_response(message="Greetings, you have permission to access this endpoint")
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 @timelog
 def upload_image(request):
 
     if 'image' not in request.FILES:
         logger.warning('[POST]Response error: No image provided')
-        return Response({"error": "No image provided"}, status=status.HTTP_400_BAD_REQUEST)
+        return standard_response(returncode=1, message="No image provided", status_code=status.HTTP_400_BAD_REQUEST)
 
     image = request.FILES['image']
 
     image_path = settings.MEDIA_ROOT / 'teeth' / image.name
     default_storage.save(str(image_path), ContentFile(image.read()))
 
-    return Response({"message": "Image uploaded successfully"}, status=status.HTTP_201_CREATED)
+    return standard_response(message="Image uploaded successfully")
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 @timelog
 def download_image(request, filename):
 
@@ -238,7 +240,7 @@ def analyze_image(request):
     # return Response({"message": "Test view accessed"}, status=status.HTTP_200_OK)
 
     if 'image' not in request.FILES:
-        return Response({"error": "No image provided"}, status=status.HTTP_400_BAD_REQUEST)
+        return standard_response(returncode=1, message="No image provided", status_code=status.HTTP_400_BAD_REQUEST)
 
     image = request.FILES['image']
 
@@ -260,20 +262,23 @@ def analyze_image(request):
         result = DentalPlaqueAnalysis.analyze_dental_plaque(save_path)
     except Exception as e:
         logger.error(f"Error during dental plaque analysis: {e}")
-        return Response({
-            "error": "An error occurred during analysis"
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return standard_response(
+            returncode=1,
+            message="An error occurred during analysis",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
     teeth_range_path = f'teeth_range/{folder_name}/'
     teeth_range_detect_path = f'teeth_range_detect/{folder_name}/'
 
-    return Response({
-        'message': result,
-        'data': {
+    return standard_response(
+        message=result,
+        data={
             'teethRangePath': teeth_range_path,
             'teethRangeDetectPath': teeth_range_detect_path
-        }
-    }, status=status.HTTP_201_CREATED)
+        },
+        status_code=status.HTTP_201_CREATED
+    )
 
 
 @api_view(['GET'])
@@ -313,11 +318,18 @@ def teeth_cleaning_record_list(request):
     if request.method == 'GET':
         student_ids = get_authorized_student_ids(user)
         if not student_ids:
-            return Response({'detail': 'Not authorized to view records.'}, status=status.HTTP_403_FORBIDDEN)
+            return standard_response(
+                returncode=1,
+                message="此帳號無法查看潔牙紀錄",
+                status_code=status.HTTP_403_FORBIDDEN
+            )
 
         records = TeethCleaningRecord.objects.filter(student_id__in=student_ids)
         serializer = TeethCleaningRecordSerializer(records, many=True)
-        return Response(serializer.data)
+        return standard_response(
+            message="Teeth cleaning records retrieved successfully",
+            data=serializer.data
+        )
 
     elif request.method == 'POST':
         serializer = TeethCleaningRecordSerializer(data=request.data)
@@ -326,11 +338,18 @@ def teeth_cleaning_record_list(request):
             student_ids = get_authorized_student_ids(user)
 
             if student.id not in student_ids:
-                return Response({'detail': 'Not authorized to create record for this student.'},
-                                status=status.HTTP_403_FORBIDDEN)
+                return standard_response(
+                    returncode=1,
+                    message="此帳號無法新增潔牙紀錄",
+                    status_code=status.HTTP_403_FORBIDDEN
+                )
 
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return standard_response(
+                message="潔牙紀錄創建成功",
+                data=serializer.data,
+                status_code=status.HTTP_201_CREATED
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -342,25 +361,47 @@ def teeth_cleaning_record_detail(request, pk):
     try:
         record = TeethCleaningRecord.objects.get(pk=pk)
     except TeethCleaningRecord.DoesNotExist:
-        return Response({'detail': 'Record not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return standard_response(
+            returncode=1,
+            message="找不到潔牙紀錄",
+            status_code=status.HTTP_404_NOT_FOUND
+        )
 
     user = request.user
     student_ids = get_authorized_student_ids(user)
 
     if record.student_id not in student_ids:
-        return Response({'detail': 'Not authorized to access this record.'}, status=status.HTTP_403_FORBIDDEN)
+        return standard_response(
+            returncode=1,
+            message="無權限存取此紀錄",
+            status_code=status.HTTP_403_FORBIDDEN
+        )
 
     if request.method == 'GET':
         serializer = TeethCleaningRecordSerializer(record)
-        return Response(serializer.data)
+        return standard_response(
+            message="Teeth cleaning record retrieved successfully",
+            data=serializer.data
+        )
 
     elif request.method == 'PUT':
         serializer = TeethCleaningRecordSerializer(record, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return standard_response(
+                message="Teeth cleaning record updated successfully",
+                data=serializer.data
+            )
+        return standard_response(
+            returncode=1,
+            message="無效資料格式",
+            data=serializer.errors,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
 
     elif request.method == 'DELETE':
         record.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return standard_response(
+            message="潔牙紀錄已刪除！！",
+            status_code=status.HTTP_204_NO_CONTENT
+        )

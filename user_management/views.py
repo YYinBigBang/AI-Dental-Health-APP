@@ -2,11 +2,14 @@
 from rest_framework import generics, viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.http import Http404
 from django.db import transaction
 from django.contrib.auth import get_user_model, authenticate
+from dental_health_service.django_utils import standard_response
 
 from .models import (
     School,
@@ -48,6 +51,95 @@ def get_tokens_for_user(user):
     }
 
 
+class CustomPagination(PageNumberPagination):
+    def get_paginated_response(self, data):
+        return standard_response(
+            returncode=0,
+            message="資料獲取成功",
+            data={
+                "results": data,
+                "count": self.page.paginator.count,
+                "next": self.get_next_link(),
+                "previous": self.get_previous_link(),
+            },
+            status_code=status.HTTP_200_OK
+        )
+
+
+class CustomModelViewSet(viewsets.ModelViewSet):
+    """Custom ModelViewSet that uses standard_response for CRUD operations."""
+    pagination_class = CustomPagination
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return standard_response(
+            returncode=0,
+            message="資料獲取成功",
+            data=serializer.data,
+            status_code=status.HTTP_200_OK
+        )
+
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+        except Http404:
+            return standard_response(
+                returncode=1,
+                message="資料未找到!!",
+                data=True,
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        serializer = self.get_serializer(instance)
+        return standard_response(
+            returncode=0,
+            message="資料獲取成功",
+            data=serializer.data,
+            status_code=status.HTTP_200_OK
+        )
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return standard_response(
+            returncode=0,
+            message="資料創建成功",
+            data=serializer.data,
+            status_code=status.HTTP_201_CREATED
+        )
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return standard_response(
+            returncode=0,
+            message="資料更新成功",
+            data=serializer.data,
+            status_code=status.HTTP_200_OK
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return standard_response(
+            returncode=0,
+            message="資料刪除成功!!",
+            data=True,
+            status_code=status.HTTP_204_NO_CONTENT
+        )
+
+
 class SignupView(APIView):
     permission_classes = [AllowAny]
 
@@ -57,11 +149,19 @@ class SignupView(APIView):
             with transaction.atomic():
                 user = serializer.save()
                 tokens = get_tokens_for_user(user)
-            return Response({
-                'user': UserSerializer(user).data,
-                'tokens': tokens
-            }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return standard_response(
+                message="User created successfully",
+                data={
+                    'user': UserSerializer(user).data,
+                    'tokens': tokens
+                }, status_code=status.HTTP_201_CREATED
+            )
+        return standard_response(
+            returncode=1,
+            message="註冊失敗！！",
+            data=serializer.errors,
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
 
 
 class LoginView(APIView):
@@ -74,11 +174,14 @@ class LoginView(APIView):
 
         if user:
             tokens = get_tokens_for_user(user)
-            return Response({
-                'user': UserSerializer(user).data,
-                'tokens': tokens
-            }, status=status.HTTP_200_OK)
-        return Response({'detail': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
+            return standard_response(
+                message="Login successful",
+                data={
+                    'user': UserSerializer(user).data,
+                    'tokens': tokens
+                }, status_code=status.HTTP_200_OK
+            )
+        return standard_response(returncode=1, message="無效憑證", status_code=status.HTTP_400_BAD_REQUEST)
 
 
 class LogoutView(APIView):
@@ -87,16 +190,20 @@ class LogoutView(APIView):
     def post(self, request):
         refresh_token = request.data.get('refresh')
         if not refresh_token:
-            return Response({'detail': 'Refresh token is required'}, status=status.HTTP_400_BAD_REQUEST)
+            return standard_response(
+                returncode=1,
+                message="需要刷新憑證",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
         try:
             token = RefreshToken(refresh_token)
             token.blacklist()
-            return Response({'detail': 'Successfully logged out'}, status=status.HTTP_200_OK)
+            return standard_response(message="成功登出", status_code=status.HTTP_204_NO_CONTENT)
         except Exception:
-            return Response({'detail': 'Invalid refresh token'}, status=status.HTTP_400_BAD_REQUEST)
+            return standard_response(returncode=1, message="無效刷新憑證", status_code=status.HTTP_400_BAD_REQUEST)
 
 
-class SchoolViewSet(viewsets.ModelViewSet):
+class SchoolViewSet(CustomModelViewSet):
     """School CRUD - Only Superusers can manage schools."""
     queryset = School.objects.all()
     serializer_class = SchoolSerializer
@@ -110,7 +217,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
 
 
-class TeacherProfileViewSet(viewsets.ModelViewSet):
+class TeacherProfileViewSet(CustomModelViewSet):
     """Teacher CRUD: Teachers can only manage their classrooms."""
     queryset = TeacherProfile.objects.all()
     serializer_class = TeacherProfileSerializer
@@ -123,7 +230,7 @@ class TeacherProfileViewSet(viewsets.ModelViewSet):
         return TeacherProfile.objects.none()
 
 
-class ClassroomViewSet(viewsets.ModelViewSet):
+class ClassroomViewSet(CustomModelViewSet):
     """Classroom CRUD: Teachers can manage classrooms they are assigned to."""
     queryset = Classroom.objects.all()
     serializer_class = ClassroomSerializer
@@ -140,7 +247,7 @@ class ClassroomViewSet(viewsets.ModelViewSet):
         classroom.teachers.add(teacher)
 
 
-class StudentProfileViewSet(viewsets.ModelViewSet):
+class StudentProfileViewSet(CustomModelViewSet):
     """
     Student CRUD:
     Teachers can manage students in their classroom.
@@ -178,7 +285,7 @@ class StudentProfileViewSet(viewsets.ModelViewSet):
             return StudentProfile.objects.none()
 
 
-class ParentViewSet(viewsets.ModelViewSet):
+class ParentViewSet(CustomModelViewSet):
     """
     Parent CRUD:
     Teachers can manage parents of students in their classroom.
@@ -234,7 +341,7 @@ class ParentViewSet(viewsets.ModelViewSet):
             return Parent.objects.none()
 
 
-class ParentStudentRelationshipViewSet(viewsets.ModelViewSet):
+class ParentStudentRelationshipViewSet(CustomModelViewSet):
     """
     Parent-Student Relationship CRUD:
     Teachers can manage relationships for students in their classroom.
