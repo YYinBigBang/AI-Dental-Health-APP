@@ -21,7 +21,7 @@ def standard_response(returncode=0, message="", data=True, status_code=status.HT
         Response: DRF Response object with standardized format.
     """
     return Response({
-        "returncode": returncode,
+        "returnCode": returncode,
         "message": message,
         "data": data
     }, status=status_code)
