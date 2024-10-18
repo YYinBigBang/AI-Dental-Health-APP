@@ -225,14 +225,14 @@ class TeacherProfileViewSet(CustomModelViewSet):
         if self.action == 'create':
             permission_classes = [IsAuthenticated]
         elif self.action in ['update', 'partial_update', 'destroy']:
-            permission_classes = [IsAuthenticated, IsTeacher, IsOwner]
+            permission_classes = [IsAuthenticated, IsTeacher | IsOwner]
         else:  # 'list' and 'retrieve'
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_superuser:
+        if user.is_superuser or user.is_staff:
             return TeacherProfile.objects.all()
 
         if hasattr(user, 'teacherprofile'):
@@ -248,7 +248,10 @@ class TeacherProfileViewSet(CustomModelViewSet):
         return TeacherProfile.objects.none()
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        serializer.save()
 
 
 class ClassroomViewSet(CustomModelViewSet):
