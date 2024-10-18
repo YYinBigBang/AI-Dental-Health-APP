@@ -218,16 +218,37 @@ class SchoolViewSet(CustomModelViewSet):
 
 
 class TeacherProfileViewSet(CustomModelViewSet):
-    """Teacher CRUD: Teachers can only manage their classrooms."""
     queryset = TeacherProfile.objects.all()
     serializer_class = TeacherProfileSerializer
-    permission_classes = [IsAuthenticated, IsTeacher, IsOwner]
+
+    def get_permissions(self):
+        if self.action == 'create':
+            permission_classes = [IsAuthenticated]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            permission_classes = [IsAuthenticated, IsTeacher, IsOwner]
+        else:  # 'list' and 'retrieve'
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
 
     def get_queryset(self):
-        teacher_profile = getattr(self.request.user, 'teacherprofile', None)
-        if teacher_profile:
-            return TeacherProfile.objects.filter(pk=teacher_profile.pk)
+        user = self.request.user
+        if user.is_superuser:
+            return TeacherProfile.objects.all()
+
+        if hasattr(user, 'teacherprofile'):
+            return TeacherProfile.objects.filter(pk=user.teacherprofile.pk)
+
+        if hasattr(user, 'studentprofile'):
+            return TeacherProfile.objects.filter(classroom__students=user.studentprofile)
+
+        if hasattr(user, 'parent'):
+            student_ids = user.parent.parentstudentrelationship_set.values_list('student_id', flat=True)
+            return TeacherProfile.objects.filter(classroom__students__id__in=student_ids).distinct()
+
         return TeacherProfile.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 class ClassroomViewSet(CustomModelViewSet):
