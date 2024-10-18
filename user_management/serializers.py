@@ -40,7 +40,7 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TeacherProfile
-        fields = ['id', 'user', 'username', 'password', 'email', 'school', 'gender', 'birth', 'phone_number']
+        fields = ['id', 'username', 'password', 'email', 'full_name', 'school', 'gender', 'birth', 'phone_number']
 
     def create(self, validated_data):
         user_data = {
