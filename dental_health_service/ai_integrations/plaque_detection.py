@@ -271,9 +271,17 @@ class DentalPlaqueAnalysis:
             logger.error(f'Calculate percentage_plaque_total ERROR(division by zero), '
                          f'total_black_pixels=> [{total_black_pixels}]'
                          f'total_teeth_area=> [{total_teeth_area}]')
-            return f"牙菌斑占比計算錯誤: {{total_black_pixels:{total_black_pixels}, total_teeth_area: {total_teeth_area}}}"
+            return {
+                'returnCode': 1,
+                'message': '計算錯誤！！(division by zero)',
+                'data': {"total_black_pixels": total_black_pixels, "total_teeth_area": total_teeth_area}
+            }
 
-        return f"整口牙齒的牙菌斑占百分比: {percentage_plaque_total:.2f}%"
+        return {
+            'returnCode': 0,
+            'message': f"整口牙齒的牙菌斑占百分比: {percentage_plaque_total:.2f}%",
+            'data': {percentage_plaque_total: round(percentage_plaque_total, 2)}
+        }
 
     @timelog
     def clear_folders(self):
@@ -293,20 +301,23 @@ class DentalPlaqueAnalysis:
 
     @classmethod
     @timelog
-    def analyze_dental_plaque(cls, img_root_folder_path):
+    def analyze_dental_plaque(cls, img_root_folder_path) -> dict:
         """Get started with teeth analysis!!"""
         logger.info("Get started with teeth analysis!!")
+        message = None
         service = cls(img_root_folder_path)
 
         service.clear_folders()
 
         for _ in range(1):
             if not service.crop_teeth_range():
-                logger.error(f'run crop_teeth_range failed!!')
+                message = 'run crop_teeth_range failed!!'
+                logger.error(message)
                 break
 
             if not service.extract_each_tooth():
-                logger.error(f'run extract_each_tooth failed!!')
+                message = 'run extract_each_tooth failed!!'
+                logger.error(message)
                 break
 
             if ret := service.detect_each_tooth():
@@ -314,7 +325,15 @@ class DentalPlaqueAnalysis:
                 return ret
             else:
                 logger.error(f'run extract_each_tooth failed!!')
-        return f'Dental Plaque analysis failure!!'
+
+        if not message:
+            message = 'Dental Plaque analysis failure!!'
+
+        return {
+            'returnCode': 1,
+            'message': message,
+            'data': True
+        }
 
 
 if __name__ == '__main__':
