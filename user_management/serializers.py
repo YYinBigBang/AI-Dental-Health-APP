@@ -33,38 +33,22 @@ class SchoolSerializer(serializers.ModelSerializer):
 
 
 class TeacherProfileSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(write_only=True)
-    password = serializers.CharField(write_only=True, style={'input_type': 'password'})
-    email = serializers.EmailField(write_only=True)
+    user = UserSerializer()
 
     class Meta:
         model = TeacherProfile
-        fields = ['id', 'username', 'password', 'email', 'full_name', 'school', 'gender', 'birth', 'phone_number']
+        fields = ['id', 'user', 'school', 'gender', 'birth', 'phone_number']
 
     def create(self, validated_data):
-        user_data = {
-            'username': validated_data.pop('username'),
-            'email': validated_data.pop('email'),
-            'password': validated_data.pop('password')
-        }
-        user = User.objects.create_user(**user_data)
+        user_data = validated_data.pop('user')
+        user = UserSerializer().create(user_data)
         teacher_profile = TeacherProfile.objects.create(user=user, **validated_data)
         return teacher_profile
 
     def update(self, instance, validated_data):
-        user_data = {}
-        for attr in ['username', 'email', 'password']:
-            if attr in validated_data:
-                user_data[attr] = validated_data.pop(attr)
-
+        user_data = validated_data.pop('user', None)
         if user_data:
-            user = instance.user
-            for attr, value in user_data.items():
-                setattr(user, attr, value)
-            if 'password' in user_data:
-                user.set_password(user_data['password'])
-            user.save()
-
+            UserSerializer().update(instance.user, user_data)
         return super().update(instance, validated_data)
 
 
