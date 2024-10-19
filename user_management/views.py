@@ -101,6 +101,7 @@ def get_tokens_for_user(user):
 
 
 class CustomPagination(PageNumberPagination):
+    """Custom pagination class with standard response formatting."""
     def get_paginated_response(self, data):
         return standard_response(
             returncode=0,
@@ -183,7 +184,7 @@ class CustomModelViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return standard_response(
             returncode=0,
-            message="資料刪除成功!!",
+            message="資料刪除成功!",
             data=True,
             status_code=status.HTTP_204_NO_CONTENT
         )
@@ -199,7 +200,7 @@ class SignupView(APIView):
                 user = serializer.save()
                 tokens = get_tokens_for_user(user)
             return standard_response(
-                message="User created successfully",
+                message="註冊成功",
                 data={
                     'user': UserSerializer(user).data,
                     'tokens': tokens
@@ -224,7 +225,7 @@ class LoginView(APIView):
         if user:
             tokens = get_tokens_for_user(user)
             return standard_response(
-                message="Login successful",
+                message="登入成功",
                 data={
                     'user': UserSerializer(user).data,
                     'tokens': tokens
@@ -253,7 +254,11 @@ class LogoutView(APIView):
 
 
 class SchoolViewSet(CustomModelViewSet):
-    """School CRUD - Only Superusers can manage schools."""
+    """
+    School CRUD:
+    Superusers can manage all schools.
+    Users can view schools.
+    """
     queryset = School.objects.all()
     serializer_class = SchoolSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsSuperuser]
@@ -267,6 +272,13 @@ class SchoolViewSet(CustomModelViewSet):
 
 
 class TeacherProfileViewSet(CustomModelViewSet):
+    """
+    Teacher CRUD:
+    Superusers can manage all teachers.
+    Teachers can view and update their own data.
+    Students can view teachers in their classroom.
+    Parents can view teachers in classrooms of their children.
+    """
     queryset = TeacherProfile.objects.all()
     serializer_class = TeacherProfileSerializer
 
@@ -318,7 +330,10 @@ class TeacherProfileViewSet(CustomModelViewSet):
 
 
 class ClassroomViewSet(CustomModelViewSet):
-    """Classroom CRUD: Teachers can manage classrooms they are assigned to."""
+    """
+    Classroom CRUD:
+    Teachers can manage classrooms they are assigned to.
+    """
     queryset = Classroom.objects.all()
     serializer_class = ClassroomSerializer
     permission_classes = [IsAuthenticated, IsTeacher, CanManageClassroom]
@@ -352,7 +367,7 @@ class StudentProfileViewSet(CustomModelViewSet):
     """
     Student CRUD:
     Teachers can manage students in their classroom.
-    Students can only update their own profiles.
+    Students can view and update their own data.
     """
     queryset = StudentProfile.objects.all()
     serializer_class = StudentProfileSerializer
@@ -390,7 +405,7 @@ class ParentViewSet(CustomModelViewSet):
     """
     Parent CRUD:
     Teachers can manage parents of students in their classroom.
-    Parents can view and update their own profiles.
+    Parents can view and update their own data.
     Students can view their parents.
     """
     queryset = Parent.objects.all()
@@ -446,7 +461,8 @@ class ParentStudentRelationshipViewSet(CustomModelViewSet):
     """
     Parent-Student Relationship CRUD:
     Teachers can manage relationships for students in their classroom.
-    Parents and students can view their relationships.
+    Parents can view and update their own relationships.
+    Students can view their relationships.
     """
     queryset = ParentStudentRelationship.objects.all()
     serializer_class = ParentStudentRelationshipSerializer
@@ -487,4 +503,3 @@ class ParentStudentRelationshipViewSet(CustomModelViewSet):
             return ParentStudentRelationship.objects.filter(student=student)
         else:
             return ParentStudentRelationship.objects.none()
-

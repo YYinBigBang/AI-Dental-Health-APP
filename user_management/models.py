@@ -6,9 +6,8 @@ from phonenumber_field.modelfields import PhoneNumberField
 
 # Choices for gender field
 GENDER_CHOICES = [
-    ('M', 'Male'),
-    ('F', 'Female'),
-    ('O', 'Other'),
+    ('男', '男性'),
+    ('女', '女性'),
 ]
 
 
