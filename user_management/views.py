@@ -1,6 +1,7 @@
 
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework.exceptions import AuthenticationFailed, ValidationError
@@ -301,6 +302,20 @@ class TeacherProfileViewSet(CustomModelViewSet):
     def perform_update(self, serializer):
         serializer.save()
 
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def students(self, request, pk=None):
+        # Get the teacher by its primary key (ID)
+        teacher = self.get_object()
+        # Find all students in the classrooms managed by this teacher
+        students = StudentProfile.objects.filter(classroom__teachers=teacher)
+        serializer = StudentProfileSerializer(students, many=True)
+        return standard_response(
+            returncode=0,
+            message="資料獲取成功",
+            data=serializer.data,
+            status_code=status.HTTP_200_OK
+        )
+
 
 class ClassroomViewSet(CustomModelViewSet):
     """Classroom CRUD: Teachers can manage classrooms they are assigned to."""
@@ -317,6 +332,20 @@ class ClassroomViewSet(CustomModelViewSet):
         teacher = self.request.user.teacherprofile
         classroom = serializer.save()
         classroom.teachers.add(teacher)
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def students(self, request, pk=None):
+        # Find the classroom by its primary key (ID)
+        classroom = self.get_object()
+        # Find students in the classroom
+        students = StudentProfile.objects.filter(classroom=classroom)
+        serializer = StudentProfileSerializer(students, many=True)
+        return standard_response(
+            returncode=0,
+            message="資料獲取成功",
+            data=serializer.data,
+            status_code=status.HTTP_200_OK
+        )
 
 
 class StudentProfileViewSet(CustomModelViewSet):
