@@ -272,13 +272,13 @@ class DentalPlaqueAnalysis:
                          f'total_black_pixels=> [{total_black_pixels}]'
                          f'total_teeth_area=> [{total_teeth_area}]')
             return {
-                'returnCode': 1,
+                'returncode': 1,
                 'message': '計算錯誤！！(division by zero)',
                 'data': {"total_black_pixels": total_black_pixels, "total_teeth_area": total_teeth_area}
             }
 
         return {
-            'returnCode': 0,
+            'returncode': 0,
             'message': f"整口牙齒的牙菌斑占百分比: {percentage_plaque_total:.2f}%",
             'data': {'percentage_plaque_total': round(percentage_plaque_total, 2)}
         }
@@ -330,7 +330,7 @@ class DentalPlaqueAnalysis:
             message = 'Dental Plaque analysis failure!!'
 
         return {
-            'returnCode': 1,
+            'returncode': 1,
             'message': message,
             'data': True
         }
