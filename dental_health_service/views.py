@@ -3,18 +3,17 @@
 # Standard libraries section
 import re
 import uuid
-from functools import wraps
 from datetime import datetime, timedelta, timezone
 
 # Django section
 from django.conf import settings
-from django.http import HttpResponse, Http404, HttpResponseBadRequest
+from django.http import HttpResponse, Http404
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.views.decorators.csrf import csrf_exempt
 from .models import TeethCleaningRecord
 from .serializers import TeethCleaningRecordSerializer
-from user_management.models import User, StudentProfile, ParentStudentRelationship
+from user_management.models import StudentProfile
 
 # Rest Framework section
 from rest_framework.decorators import api_view, permission_classes
@@ -23,7 +22,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
 # LineBot section
-from linebot.v3 import WebhookHandler, WebhookParser
+from linebot.v3 import WebhookHandler
 from linebot.v3.messaging.api.messaging_api_blob import MessagingApiBlob
 from linebot.v3.webhooks import MessageEvent, TextMessageContent, ImageMessageContent
 from linebot.v3.exceptions import InvalidSignatureError
@@ -38,7 +37,7 @@ from linebot.v3.messaging import (
 )
 
 # Custom section
-from .django_utils import logger, timelog, standard_response
+from AI_Dental_Health_APP.django_utils import logger, timelog, standard_response
 from .ai_integrations.plaque_detection import DentalPlaqueAnalysis
 
 logger.info("========= Starting the API service =========")

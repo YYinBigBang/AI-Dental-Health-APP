@@ -33,7 +33,6 @@ class SchoolSerializer(serializers.ModelSerializer):
 
 
 class TeacherProfileSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
     username = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True, style={'input_type': 'password'})
     email = serializers.EmailField(write_only=True)

@@ -1,15 +1,15 @@
 
-from rest_framework import generics, viewsets, status
+from rest_framework import viewsets, status
 from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
+from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.http import Http404
 from django.db import transaction
 from django.contrib.auth import get_user_model, authenticate
-from dental_health_service.django_utils import standard_response
+from AI_Dental_Health_APP.django_utils import standard_response
 
 from .models import (
     School,
@@ -41,6 +41,54 @@ from .serializers import (
 )
 
 User = get_user_model()
+
+
+class CustomTokenViewMixin:
+    """Mixin to handle standard response formatting for token views."""
+
+    def handle_response(self, request, view_method, success_message):
+        try:
+            response = view_method(request)
+            data = response.data
+            return standard_response(
+                returncode=0,
+                message=success_message,
+                data=data,
+                status_code=status.HTTP_200_OK
+            )
+        except AuthenticationFailed as e:
+            return standard_response(
+                returncode=1,
+                message=str(e),
+                data=False,
+                status_code=status.HTTP_401_UNAUTHORIZED
+            )
+        except ValidationError as e:
+            return standard_response(
+                returncode=1,
+                message=e.detail,
+                data=False,
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return standard_response(
+                returncode=1,
+                message="Unexpected error",
+                data=False,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class CustomTokenObtainPairView(CustomTokenViewMixin, TokenObtainPairView):
+    """Customized TokenObtainPairView with standard response."""
+    def post(self, request, *args, **kwargs):
+        return self.handle_response(request, super().post, "Token obtained successfully")
+
+
+class CustomTokenRefreshView(CustomTokenViewMixin, TokenRefreshView):
+    """Customized TokenRefreshView with standard response."""
+    def post(self, request, *args, **kwargs):
+        return self.handle_response(request, super().post, "Token refreshed successfully")
 
 
 def get_tokens_for_user(user):

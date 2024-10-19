@@ -3,11 +3,12 @@ import logging
 from functools import wraps
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.views import exception_handler
 
 logger = logging.getLogger()
 
 
-def standard_response(returncode=0, message="", data=True, status_code=status.HTTP_200_OK):
+def standard_response(returncode=0, message="Success", data=True, status_code=status.HTTP_200_OK):
     """
     Generates a standardized API response.
 
@@ -25,6 +26,27 @@ def standard_response(returncode=0, message="", data=True, status_code=status.HT
         "message": message,
         "data": data
     }, status=status_code)
+
+
+def custom_exception_handler(exc, context):
+    response = exception_handler(exc, context)
+
+    if response is not None:
+        status_code = response.status_code
+
+        return standard_response(
+            returncode=1,
+            message='Error: ' + str(response.data.get('detail', '')),
+            data=response.data,
+            status_code=status_code
+        )
+    else:
+        return standard_response(
+            returncode=1,
+            message='Internal Server Error!!',
+            data=True,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 def timelog(func):
