@@ -9,7 +9,7 @@ class TeethCleaningRecord(models.Model):
     # Automatically set to the current date and time when created.
     date_time = models.DateTimeField(auto_now_add=True)
     images_path = models.CharField(max_length=255, unique=True)
-    dental_plaque_count = models.IntegerField()
+    dental_plaque_count = models.DecimalField(max_digits=5, decimal_places=2)
 
     class Meta:
         unique_together = ('student', 'date_time')
