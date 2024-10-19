@@ -280,7 +280,7 @@ class DentalPlaqueAnalysis:
         return {
             'returncode': 0,
             'message': f"整口牙齒的牙菌斑占百分比: {percentage_plaque_total:.2f}%",
-            'data': {'percentage_plaque_total': f'{percentage_plaque_total:.2f}%'}
+            'data': {'percentage_plaque_total': f'{percentage_plaque_total:.2f}'}
         }
 
     @timelog
