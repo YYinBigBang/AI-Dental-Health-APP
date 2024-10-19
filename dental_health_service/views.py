@@ -149,12 +149,11 @@ def handle_content_message(event):
 
         try:
             # Invoke analysis API for image processing
-            result_comment = DentalPlaqueAnalysis.analyze_dental_plaque(save_path)
+            result_dict = DentalPlaqueAnalysis.analyze_dental_plaque(save_path)
         except Exception as e:
             logger.error(f"Error during dental plaque analysis: {e}")
-            result_comment = None
 
-        if result_comment:
+        if result_dict.get('returncode', 1) == 0:
             domain_name = 'https://dental-service.jieniguicare.org'
             api_route = '/api/analysis/'
             teeth_range_path = domain_name + api_route + f'teeth_range/{folder_name}/'
@@ -169,7 +168,7 @@ def handle_content_message(event):
                 ImageMessage(
                     original_content_url=teeth_range_detect_path,
                     preview_image_url=teeth_range_detect_path),
-                TextMessage(text=result_comment)
+                TextMessage(text=result_dict.get('message', ''))
             ]
         else:
             messages = [TextMessage(text='圖片分析失敗！')]
@@ -258,7 +257,7 @@ def analyze_image(request):
 
     try:
         # Invoking analyzed API for image processing
-        result = DentalPlaqueAnalysis.analyze_dental_plaque(save_path)
+        result_dict = DentalPlaqueAnalysis.analyze_dental_plaque(save_path)
     except Exception as e:
         logger.error(f"Error during dental plaque analysis: {e}")
         return standard_response(
@@ -271,8 +270,10 @@ def analyze_image(request):
     teeth_range_detect_path = f'teeth_range_detect/{folder_name}/'
 
     return standard_response(
-        message=result,
+        message=result_dict.get('message', 'Dental plaque analysis completed'),
         data={
+            'API status': result_dict.get('returncode', -1),
+            'percentage_plaque_total': result_dict.get('percentage_plaque_total', -1),
             'teethRangePath': teeth_range_path,
             'teethRangeDetectPath': teeth_range_detect_path
         },
@@ -308,54 +309,61 @@ def get_authorized_student_ids(user):
     return []
 
 
-@api_view(['GET', 'POST'])
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def teeth_cleaning_record_list(request):
-    """An endpoint to list and create teeth cleaning records."""
-    user = request.user
-
-    if request.method == 'GET':
+def create_teeth_cleaning_record(request):
+    """Create a new teeth cleaning record."""
+    serializer = TeethCleaningRecordSerializer(data=request.data)
+    if serializer.is_valid():
+        student = serializer.validated_data.get('student')
+        user = request.user
         student_ids = get_authorized_student_ids(user)
-        if not student_ids:
+
+        if student.id not in student_ids:
             return standard_response(
                 returncode=1,
-                message="此帳號無法查看潔牙紀錄",
+                message="此帳號無法新增潔牙紀錄",
                 status_code=status.HTTP_403_FORBIDDEN
             )
 
-        records = TeethCleaningRecord.objects.filter(student_id__in=student_ids)
-        serializer = TeethCleaningRecordSerializer(records, many=True)
+        serializer.save()
         return standard_response(
-            message="Teeth cleaning records retrieved successfully",
-            data=serializer.data
+            message="潔牙紀錄創建成功",
+            data=serializer.data,
+            status_code=status.HTTP_201_CREATED
         )
 
-    elif request.method == 'POST':
-        serializer = TeethCleaningRecordSerializer(data=request.data)
-        if serializer.is_valid():
-            student = serializer.validated_data.get('student')
-            student_ids = get_authorized_student_ids(user)
+    return standard_response(
+        returncode=1,
+        message="無效資料格式",
+        data=serializer.errors,
+        status_code=status.HTTP_400_BAD_REQUEST
+    )
 
-            if student.id not in student_ids:
-                return standard_response(
-                    returncode=1,
-                    message="此帳號無法新增潔牙紀錄",
-                    status_code=status.HTTP_403_FORBIDDEN
-                )
 
-            serializer.save()
-            return standard_response(
-                message="潔牙紀錄創建成功",
-                data=serializer.data,
-                status_code=status.HTTP_201_CREATED
-            )
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_teeth_cleaning_records(request):
+    """A List all teeth cleaning records."""
+    student_ids = get_authorized_student_ids(request.user)
+    if not student_ids:
+        return standard_response(
+            returncode=1,
+            message="此帳號無法查看潔牙紀錄",
+            status_code=status.HTTP_403_FORBIDDEN
+        )
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    records = TeethCleaningRecord.objects.filter(student_id__in=student_ids)
+    serializer = TeethCleaningRecordSerializer(records, many=True)
+    return standard_response(
+        message="Teeth cleaning records retrieved successfully",
+        data=serializer.data
+    )
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
-def teeth_cleaning_record_detail(request, pk):
+def edit_single_cleaning_records(request, pk):
     """An endpoint to retrieve, update, or delete a teeth cleaning record."""
     try:
         record = TeethCleaningRecord.objects.get(pk=pk)
@@ -388,7 +396,7 @@ def teeth_cleaning_record_detail(request, pk):
         if serializer.is_valid():
             serializer.save()
             return standard_response(
-                message="Teeth cleaning record updated successfully",
+                message="潔牙紀錄更新成功",
                 data=serializer.data
             )
         return standard_response(
@@ -401,6 +409,54 @@ def teeth_cleaning_record_detail(request, pk):
     elif request.method == 'DELETE':
         record.delete()
         return standard_response(
-            message="潔牙紀錄已刪除！！",
+            message="此筆潔牙紀錄已刪除！！",
             status_code=status.HTTP_204_NO_CONTENT
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_teeth_cleaning_records_for_student(request, student_id):
+    """Retrieve all teeth cleaning records for a specific student."""
+    user = request.user
+    authorized_student_ids = get_authorized_student_ids(user)
+
+    if student_id not in authorized_student_ids:
+        return standard_response(
+            returncode=1,
+            message="此帳號無法查看指定學生的潔牙紀錄",
+            status_code=403
+        )
+
+    try:
+        records = TeethCleaningRecord.objects.filter(student_id=student_id)
+        serializer = TeethCleaningRecordSerializer(records, many=True)
+        return standard_response(
+            message="Teeth cleaning records retrieved successfully",
+            data=serializer.data
+        )
+    except TeethCleaningRecord.DoesNotExist:
+        return standard_response(
+            returncode=1,
+            message="找不到潔牙紀錄",
+            status_code=404
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_teeth_cleaning_records_by_date(request, date):
+    """Retrieve all teeth cleaning records for a specific date."""
+    try:
+        records = TeethCleaningRecord.objects.filter(date_time__date=date)
+        serializer = TeethCleaningRecordSerializer(records, many=True)
+        return standard_response(
+            message="Teeth cleaning records for specified date retrieved successfully",
+            data=serializer.data
+        )
+    except TeethCleaningRecord.DoesNotExist:
+        return standard_response(
+            returncode=1,
+            message="找不到指定日期的潔牙紀錄",
+            status_code=404
         )
