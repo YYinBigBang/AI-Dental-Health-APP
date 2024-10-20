@@ -272,8 +272,8 @@ def analyze_image(request):
     return standard_response(
         message=result_dict.get('message', 'Dental plaque analysis completed'),
         data={
-            'API status': result_dict.get('returncode', -1),
-            'percentage_plaque_total': result_dict['data'].get('percentage_plaque_total', -1),
+            'API status': result_dict.get('returncode', '-1'),
+            'percentage_plaque_total': result_dict['data'].get('percentage_plaque_total', '-1'),
             'teethRangePath': teeth_range_path,
             'teethRangeDetectPath': teeth_range_detect_path
         },
