@@ -43,6 +43,9 @@ SECRET_KEY = 'django-insecure-5js!+$ccs8=n-j52pd8uz_z2nnhg@4$iyb&645%4g-riz_=q7!
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+# set the maximum size of the file to be uploaded to 30MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
@@ -62,6 +65,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'user_management.User'
 
 REST_FRAMEWORK = {
+    'MAX_PARSERS_SIZE': 30 * 1024 * 1024,  # 30 MB
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',  # Allow session-based validation
