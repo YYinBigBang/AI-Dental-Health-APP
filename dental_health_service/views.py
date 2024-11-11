@@ -80,10 +80,10 @@ def handle_text_message(event):
             ]
         elif '查詢結果' in user_message:
             messages = [
-                TextMessage(text='請輸入日期\n(格式：2024-07-07_20-13-14)')
+                TextMessage(text='請輸入日期\n(格式：2024-10-21_07-01-59_4fb29d)')
             ]
         else:
-            regex = r'\d{4}[-./]\d{2}[-./]\d{2}[-._/]\d{2}[-./]\d{2}[-./]\d{2}'
+            regex = r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_[a-f0-9]{6}'
             if match_text := re.search(regex, user_message):
                 timestamp = match_text.group()
                 image_path = settings.MEDIA_ROOT / 'dental_plaque_analysis' / timestamp
